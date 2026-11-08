@@ -76,6 +76,6 @@ export default function App() {
         ].map(([n,t,d])=><article key={n}><span>{n}</span><h3>{t}</h3><p>{d}</p></article>)}
       </div>
     </section>
-    <footer>Pakistan Fundamental Intelligence <span>Research prototype · Not investment advice</span></footer>
+    <footer>Pakistan Fundamental Intelligence <span>Research prototype · Source-first analysis · Not investment advice</span></footer>
   </main>;
 }
