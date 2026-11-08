@@ -308,7 +308,7 @@ export default function App() {
       {result && <div className="notice success"><strong>Private source stored</strong><p>{result.message}</p><small>{result.filename} · {result.size_bytes.toLocaleString()} bytes · {result.extraction_status}</small><code>{result.sha256}</code></div>}
       {documentError && <div className="notice error">{documentError}</div>}
       <div className="history-heading"><strong>Your private source library</strong><span>{documents.length} stored document(s)</span></div>
-      {documents.length === 0 ? <p className="muted">No reports stored yet. Upload a company filing to begin your source register.</p> : <div className="document-list">{documents.map(document=><article className="document-item" key={document.id}><div><strong>{document.original_filename}</strong><span>{document.document_type.replaceAll("_"," ")} · {document.fiscal_year ?? "Year not set"} · {document.statement_scope} · {(document.size_bytes/1024/1024).toFixed(2)} MB</span></div><button className="secondary" onClick={()=>downloadDocument(document)}><FileText size={14}/> Download</button></article>)}</div>}
+      {documents.length === 0 ? <p className="muted">No reports stored yet. Upload a company filing to begin your source register.</p> : <div className="document-list">{documents.map(document=><article className="document-item" key={document.id}><div><strong>{document.original_filename}</strong><span>{document.document_type.replace(/_/g," ")} · {document.fiscal_year ?? "Year not set"} · {document.statement_scope} · {(document.size_bytes/1024/1024).toFixed(2)} MB</span></div><button className="secondary" onClick={()=>downloadDocument(document)}><FileText size={14}/> Download</button></article>)}</div>}
     </section>
 
     <section className="workflow">
