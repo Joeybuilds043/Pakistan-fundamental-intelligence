@@ -12,14 +12,18 @@ type HistoryRow = { fiscal_year: string; revenue: string; operating_cash_flow: s
 type QuantResult = {
   ticker: string;
   model: string;
+  model_version: string;
   status: string;
   horizon_years: number;
+  growth_hurdle: number;
   simulations: number;
   posterior_revenue_growth: { mean: number; std_dev: number; prior_mean: number; prior_std_dev: number };
   base_case_probabilities: {
     all_forecast_years_fcf_positive: number;
     at_least_one_forecast_year_fcf_negative: number;
     revenue_cagr_meets_hurdle: number;
+    terminal_revenue_below_starting_revenue: number;
+    cumulative_fcf_negative: number;
   };
   stress_case: { growth_delta_per_year: number; fcf_margin_delta: number; probability_any_year_fcf_negative: number };
   terminal_revenue: { p10: number; median: number; p90: number; currency: string };
@@ -142,11 +146,12 @@ export default function App() {
       </form>
       {quantError && <div className="notice error">{quantError}</div>}
       {quantResult && <div className="quant-results">
-        <div className="result-title"><div><div className="eyebrow">{quantResult.ticker} / MODEL OUTPUT</div><h3>Conditional scenario distribution</h3></div><span className="tag">{quantResult.simulations.toLocaleString()} RUNS</span></div>
+        <div className="result-title"><div><div className="eyebrow">{quantResult.ticker} / MODEL OUTPUT</div><h3>Conditional scenario distribution</h3></div><span className="tag">MODEL {quantResult.model_version} · {quantResult.simulations.toLocaleString()} RUNS</span></div>
         <div className="probability-grid">
-          <article><span>All years FCF positive</span><strong>{pct(quantResult.base_case_probabilities.all_forecast_years_fcf_positive)}</strong></article>
           <article><span>At least one negative FCF year</span><strong>{pct(quantResult.base_case_probabilities.at_least_one_forecast_year_fcf_negative)}</strong></article>
-          <article><span>Revenue CAGR meets hurdle</span><strong>{pct(quantResult.base_case_probabilities.revenue_cagr_meets_hurdle)}</strong></article>
+          <article><span>Terminal revenue below starting level</span><strong>{pct(quantResult.base_case_probabilities.terminal_revenue_below_starting_revenue)}</strong></article>
+          <article><span>Cumulative forecast FCF negative</span><strong>{pct(quantResult.base_case_probabilities.cumulative_fcf_negative)}</strong></article>
+          <article><span>Revenue CAGR meets {pct(quantResult.growth_hurdle)} hurdle</span><strong>{pct(quantResult.base_case_probabilities.revenue_cagr_meets_hurdle)}</strong></article>
           <article><span>Stress: any negative FCF year</span><strong>{pct(quantResult.stress_case.probability_any_year_fcf_negative)}</strong></article>
         </div>
         <div className="distribution-grid">
@@ -154,7 +159,7 @@ export default function App() {
           <article><h4>Cumulative free cash flow</h4><div><span>P10</span><b>{number(quantResult.cumulative_fcf.p10)}</b></div><div><span>Median</span><b>{number(quantResult.cumulative_fcf.median)}</b></div><div><span>P90</span><b>{number(quantResult.cumulative_fcf.p90)}</b></div></article>
           <article><h4>Bayesian growth posterior</h4><div><span>Mean</span><b>{pct(quantResult.posterior_revenue_growth.mean)}</b></div><div><span>Std. deviation</span><b>{pct(quantResult.posterior_revenue_growth.std_dev)}</b></div><div><span>Prior mean</span><b>{pct(quantResult.posterior_revenue_growth.prior_mean)}</b></div></article>
         </div>
-        <p className="result-disclaimer">Amounts use the units and currency you entered. The model assumes a supplied sector prior (8% mean, 12% standard deviation) and fixed stress shocks. Results are not calibrated market odds, intrinsic value or expected share returns.</p>
+        <p className="result-disclaimer">Amounts use the units and currency you entered. The model assumes a supplied sector prior (8% mean, 12% standard deviation) and fixed stress shocks. The hurdle is {pct(quantResult.growth_hurdle)}. Results are not calibrated market odds, intrinsic value or expected share returns.</p>
         <details><summary>Model limitations and validation requirements</summary><ul>{quantResult.limitations.map(item=><li key={item}>{item}</li>)}</ul></details>
       </div>}
     </section>
