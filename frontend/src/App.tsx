@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { DOCUMENT_BUCKET, supabase } from "./lib/supabase";
 import { Activity, ArrowUpRight, FileText, ShieldCheck, UploadCloud, Plus, Trash2, FlaskConical } from "lucide-react";
 
 type Inspection = {
@@ -8,6 +10,7 @@ type Inspection = {
   extraction_status: string;
   message: string;
 };
+type DocumentRow = { id: string; original_filename: string; storage_key: string; document_type: string; fiscal_year: number | null; statement_scope: string; size_bytes: number; uploaded_at: string };
 type HistoryRow = { fiscal_year: string; revenue: string; operating_cash_flow: string; capex: string };
 type QuantResult = {
   ticker: string;
@@ -36,6 +39,18 @@ const pct = (value: number) => `${(value * 100).toFixed(1)}%`;
 const number = (value: number) => new Intl.NumberFormat("en", { maximumFractionDigits: 1 }).format(value);
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [documents, setDocuments] = useState<DocumentRow[]>([]);
+  const [documentError, setDocumentError] = useState("");
+  const [documentType, setDocumentType] = useState("annual_report");
+  const [fiscalYear, setFiscalYear] = useState("");
+  const [statementScope, setStatementScope] = useState("consolidated");
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<Inspection | null>(null);
   const [error, setError] = useState("");
@@ -48,18 +63,114 @@ export default function App() {
   const [hurdle, setHurdle] = useState("5");
   const [horizon, setHorizon] = useState("3");
 
-  async function inspectFile() {
-    if (!file) return;
-    setBusy(true); setError(""); setResult(null);
-    const body = new FormData();
-    body.append("file", file);
+  useEffect(() => {
+    if (!supabase) { setAuthLoading(false); return; }
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthLoading(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !session?.user.id) { setDocuments([]); return; }
+    let active = true;
+    supabase.from("source_documents")
+      .select("id,original_filename,storage_key,document_type,fiscal_year,statement_scope,size_bytes,uploaded_at")
+      .order("uploaded_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) setDocumentError(error.message);
+        else { setDocuments((data ?? []) as DocumentRow[]); setDocumentError(""); }
+      });
+    return () => { active = false; };
+  }, [session?.user.id]);
+
+  async function handleAuth(event: FormEvent) {
+    event.preventDefault();
+    if (!supabase) return;
+    setAuthBusy(true); setAuthMessage("");
     try {
-      const response = await fetch(`${API_URL}/v1/documents/inspect`, { method: "POST", body });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || "Upload inspection failed.");
-      setResult(payload);
+      if (authMode === "signup") {
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: window.location.origin } });
+        if (error) throw error;
+        setAuthMessage(data.session ? "Account created and signed in." : "Account created. Check your email to confirm the address, then sign in.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
+      }
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Authentication failed.");
+    } finally { setAuthBusy(false); }
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) setAuthMessage(error.message);
+  }
+
+  async function downloadDocument(document: DocumentRow) {
+    if (!supabase) return;
+    const { data, error } = await supabase.storage.from(DOCUMENT_BUCKET).download(document.storage_key);
+    if (error) { setDocumentError(error.message); return; }
+    const url = URL.createObjectURL(data);
+    const anchor = window.document.createElement("a");
+    anchor.href = url; anchor.download = document.original_filename; anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function inspectFile() {
+    if (!file || !supabase || !session?.user) return;
+    setBusy(true); setError(""); setResult(null); setDocumentError("");
+    try {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "";
+      const allowed = ["pdf", "xlsx", "xls", "csv"];
+      if (!allowed.includes(extension)) throw new Error("Upload a PDF, XLSX, XLS or CSV file.");
+      if (file.size <= 0 || file.size > 25 * 1024 * 1024) throw new Error("File must be between 1 byte and 25 MB.");
+      const mimeByExtension: Record<string, string> = {
+        pdf: "application/pdf",
+        xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        xls: "application/vnd.ms-excel",
+        csv: "text/csv",
+      };
+      const contentType = file.type || mimeByExtension[extension];
+      const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+      const hash = Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, "0")).join("");
+      const safeName = file.name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "_").slice(-120);
+      const storageKey = session.user.id + "/" + crypto.randomUUID() + "-" + safeName;
+      const { error: uploadError } = await supabase.storage.from(DOCUMENT_BUCKET).upload(storageKey, file, {
+        cacheControl: "3600", contentType, upsert: false,
+      });
+      if (uploadError) throw uploadError;
+      const { data, error: metadataError } = await supabase.from("source_documents").insert({
+        original_filename: file.name,
+        storage_key: storageKey,
+        mime_type: contentType,
+        size_bytes: file.size,
+        sha256: hash,
+        document_type: documentType,
+        fiscal_year: fiscalYear ? Number(fiscalYear) : null,
+        statement_scope: statementScope,
+      }).select("id,original_filename,storage_key,document_type,fiscal_year,statement_scope,size_bytes,uploaded_at").single();
+      if (metadataError) {
+        await supabase.storage.from(DOCUMENT_BUCKET).remove([storageKey]);
+        throw metadataError;
+      }
+      const saved = data as DocumentRow;
+      setDocuments(current => [saved, ...current]);
+      setResult({
+        filename: file.name, size_bytes: file.size, sha256: hash,
+        extraction_status: "stored_pending_extraction",
+        message: "Original report securely stored in your private account. Financial figures have not yet been extracted or validated.",
+      });
+      setFile(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not reach the API. Check VITE_API_URL.");
+      setError(e instanceof Error ? e.message : "Could not store the document. Check your session and Storage policies.");
     } finally { setBusy(false); }
   }
 
