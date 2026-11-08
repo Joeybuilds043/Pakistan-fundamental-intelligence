@@ -14,3 +14,5 @@ export const supabase = supabaseUrl && supabasePublishableKey
   : null;
 
 export const DOCUMENT_BUCKET = "pfi-source-documents";
+
+// All document objects remain private and are scoped by storage.objects RLS.
