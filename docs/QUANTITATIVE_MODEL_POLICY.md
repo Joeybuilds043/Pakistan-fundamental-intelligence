@@ -7,7 +7,7 @@ PFI uses quantitative methods to describe conditional business scenarios and unc
 - Bayesian normal-normal shrinkage: combines the sample mean of annual revenue growth with an explicit sector prior. The posterior standard deviation is retained and sampled rather than hidden.
 - Monte Carlo simulation: propagates posterior growth uncertainty and observed free-cash-flow-margin variability through a user-selected forecast horizon.
 - Stress scenario: shifts annual revenue growth and free-cash-flow margin by explicit analyst-selected shocks.
-- Reported outputs: probability that FCF is positive in every forecast year, probability of at least one negative-FCF year, probability revenue CAGR meets a stated hurdle, and P10/P50/P90 ranges for terminal revenue and cumulative FCF.
+- Reported outputs: probability of at least one negative-FCF year, probability terminal revenue falls below the starting level, probability cumulative forecast FCF is negative, probability revenue CAGR meets a stated hurdle, stress-case negative-FCF probability, and P10/P50/P90 ranges for terminal revenue and cumulative FCF.
 
 ## Input contract
 - At least four annual observations (three growth intervals).
