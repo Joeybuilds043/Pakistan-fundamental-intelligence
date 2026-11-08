@@ -32,7 +32,7 @@ See docs/QUANTITATIVE_MODEL_POLICY.md for assumptions and limitations.
 - Cloudflare Pages: frontend hosting
 
 ## Roadmap
-See docs/ROADMAP.md. Authentication and private source storage are now wired. Financial statement extraction, reconciliation, point-in-time PSX data and tested email redirect configuration are still required before the platform can be described as a complete production research system.
+See docs/ROADMAP.md and docs/AUTH_AND_STORAGE.md for deployment, authentication and storage setup. Authentication and private source storage are now wired. Financial statement extraction, reconciliation, point-in-time PSX data and tested email redirect configuration are still required before the platform can be described as a complete production research system.
 
 ## Local development
 Backend:
