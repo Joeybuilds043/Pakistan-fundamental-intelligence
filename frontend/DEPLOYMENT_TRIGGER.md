@@ -1,0 +1,1 @@
+Initial Cloudflare Pages deployment trigger. Build configuration is defined in the Cloudflare Pages project settings.
