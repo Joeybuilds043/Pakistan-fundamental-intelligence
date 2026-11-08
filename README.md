@@ -11,7 +11,10 @@ A PSX-first research terminal for evidence-backed company analysis. The project 
 - React/Vite research terminal deployed on Cloudflare Pages.
 - FastAPI service deployed on Railway.
 - Supabase Postgres schema for companies, source documents and financial observations, with row-level security.
-- File inspection endpoint for PDF, XLSX, XLS and CSV (25 MB limit). Current endpoint fingerprints in-memory content only; it does not persist the file or extract financial figures.
+- Supabase Auth email/password sign-up and sign-in.
+- Private Supabase Storage bucket `pfi-source-documents`, owner-folder policies, 25 MB per-file limit and PDF/XLSX/XLS/CSV MIME restrictions.
+- Authenticated source uploads with SHA-256 fingerprints and metadata stored in `public.source_documents`; private download from the user's own library.
+- Uploaded reports are stored, not yet parsed: no financial figures are automatically extracted or validated.
 - Quant Lab endpoint using Bayesian shrinkage and Monte Carlo simulation for conditional revenue and free-cash-flow scenarios.
 - Stress case and P10/P50/P90 outcome ranges.
 - Quantitative model policy and automated tests.
@@ -24,12 +27,12 @@ See docs/QUANTITATIVE_MODEL_POLICY.md for assumptions and limitations.
 ## Architecture
 - frontend/: React + TypeScript + Vite
 - backend/: Python + FastAPI
-- Supabase: Postgres, Auth and planned private Storage
+- Supabase: Postgres, Auth and private Storage
 - Railway: API runtime
 - Cloudflare Pages: frontend hosting
 
 ## Roadmap
-See docs/ROADMAP.md. Durable private document storage, authentication, extraction, reconciliation and point-in-time PSX data are still required before the platform can be described as a complete production research system.
+See docs/ROADMAP.md. Authentication and private source storage are now wired. Financial statement extraction, reconciliation, point-in-time PSX data and tested email redirect configuration are still required before the platform can be described as a complete production research system.
 
 ## Local development
 Backend:
