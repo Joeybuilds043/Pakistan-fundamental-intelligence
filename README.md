@@ -1,54 +1,56 @@
 # Pakistan Fundamental Intelligence (PFI)
 
-A PSX-first, source-traceable fundamental research platform. The current repository contains an early working prototype, not a finished financial-analysis engine.
+A PSX-first research terminal for evidence-backed company analysis. The project separates reported facts, calculated metrics and analyst assumptions; it does not fabricate missing data or present scenario probabilities as investment certainty.
+
+## Live services
+- Frontend: https://pakistan-fundamental-intelligence.pages.dev
+- API: https://fundamental-api-production.up.railway.app
+- API documentation: https://fundamental-api-production.up.railway.app/docs
+
+## Current capabilities
+- React/Vite research terminal deployed on Cloudflare Pages.
+- FastAPI service deployed on Railway.
+- Supabase Postgres schema for companies, source documents and financial observations, with row-level security.
+- File inspection endpoint for PDF, XLSX, XLS and CSV (25 MB limit). Current endpoint fingerprints in-memory content only; it does not persist the file or extract financial figures.
+- Quant Lab endpoint using Bayesian shrinkage and Monte Carlo simulation for conditional revenue and free-cash-flow scenarios.
+- Stress case and P10/P50/P90 outcome ranges.
+- Quantitative model policy and automated tests.
+
+## Quantitative scenario model
+POST /v1/quant/scenario accepts at least four annual observations containing revenue, operating cash flow and capex. It reports conditional probabilities and scenario ranges based on a transparent sector prior and explicit stress shocks. Outputs are not stock-price forecasts, fair values, calibrated market odds or expected share returns.
+
+See docs/QUANTITATIVE_MODEL_POLICY.md for assumptions and limitations.
 
 ## Architecture
-- Web app: React + Vite (`/frontend`)
-- API: Python + FastAPI (`/backend`)
-- Relational data and authentication: Supabase
-- Private source storage: Cloudflare R2 (not yet enabled)
-- Optional intake prototype: Streamlit (`streamlit_app.py`)
-- Hosting target: Cloudflare Pages + Railway
+- frontend/: React + TypeScript + Vite
+- backend/: Python + FastAPI
+- Supabase: Postgres, Auth and planned private Storage
+- Railway: API runtime
+- Cloudflare Pages: frontend hosting
 
-## Current functionality
-- FastAPI health endpoint at `/health`
-- Document inspection endpoint at `/v1/documents/inspect`
-- PDF, XLSX, XLS and CSV type/size validation
-- SHA-256 source fingerprinting
-- React upload interface connected to the API
-- Streamlit session-only source register and CSV export
-- API smoke tests
+## Roadmap
+See docs/ROADMAP.md. Durable private document storage, authentication, extraction, reconciliation and point-in-time PSX data are still required before the platform can be described as a complete production research system.
 
-## Important limitations
-The upload endpoint reads the file in memory, calculates a fingerprint and discards the file. It does not authenticate users, persist files, extract statement values, or provide investment recommendations. The Streamlit prototype stores its register only in the active session. Do not treat either as production document storage.
-
-Financial values must never be fabricated. Every future observation must carry its source document, reporting period, currency/unit, statement scope and source locator. See [Financial Data Contract](docs/FINANCIAL_DATA_CONTRACT.md).
-
-## Run locally
-
-### API
+## Local development
+Backend:
 ```bash
 cd backend
 python -m venv .venv
-# activate the virtual environment
+# Activate the environment, then:
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-### Web app
+Frontend:
 ```bash
 cd frontend
 npm install
-# create .env with VITE_API_URL=http://localhost:8000
 npm run dev
 ```
 
-### Streamlit prototype
-From the repository root:
-```bash
-pip install -r requirements.txt
-streamlit run streamlit_app.py
-```
-
-## Deployment
-See [Deployment Notes](docs/DEPLOYMENT.md). Never commit real API keys, Supabase service-role keys, R2 secrets or production credentials.
+## Integrity principles
+- Missing is not zero.
+- Consolidated and standalone statements are never silently mixed.
+- Every reported observation must retain its filing and page/sheet/cell provenance.
+- Derived metrics must retain formula versions and source observation links.
+- Probabilities must disclose their priors, horizon, assumptions and calibration status.
