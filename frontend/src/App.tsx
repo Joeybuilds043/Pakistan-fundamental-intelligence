@@ -214,10 +214,25 @@ export default function App() {
     } finally { setQuantBusy(false); }
   }
 
+  if (!supabase) return <main className="auth-screen"><section className="auth-card"><div className="brand-mark">PFI</div><h1>Supabase configuration required</h1><p>Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to Cloudflare Pages environment variables, then redeploy.</p></section></main>;
+  if (authLoading) return <main className="auth-screen"><section className="auth-card"><div className="brand-mark">PFI</div><p>Checking secure session…</p></section></main>;
+  if (!session) return <main className="auth-screen"><section className="auth-card">
+    <div className="brand-mark">PFI</div><div className="eyebrow">PRIVATE RESEARCH WORKSPACE</div>
+    <h1>{authMode === "signin" ? "Sign in to PFI" : "Create your PFI account"}</h1>
+    <p>Financial reports are stored in a private bucket. Your account controls access to its documents and metadata.</p>
+    <form onSubmit={handleAuth} className="auth-form">
+      <label>Email address<input type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="you@example.com"/></label>
+      <label>Password<input type="password" autoComplete={authMode === "signin" ? "current-password" : "new-password"} minLength={8} value={password} onChange={e=>setPassword(e.target.value)} required placeholder="At least 8 characters"/></label>
+      <button className="submit" type="submit" disabled={authBusy}>{authBusy ? "Please wait…" : authMode === "signin" ? "Sign in" : "Create account"}</button>
+    </form>
+    {authMessage && <div className="notice error">{authMessage}</div>}
+    <button className="auth-switch" onClick={()=>{setAuthMode(mode=>mode === "signin" ? "signup" : "signin");setAuthMessage("");}}>{authMode === "signin" ? "New to PFI? Create an account" : "Already registered? Sign in"}</button>
+  </section></main>;
+
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">PFI</span><span>Pakistan Fundamental Intelligence<small>RESEARCH TERMINAL</small></span></a>
-      <span className="status"><i /> Research prototype</span>
+      <div className="account-actions"><span className="status"><i /> {session.user.email}</span><button className="signout" onClick={signOut}>Sign out</button></div>
     </header>
 
     <section className="hero">
@@ -277,7 +292,12 @@ export default function App() {
 
     <section className="workspace" id="intake">
       <div className="section-head"><div><div className="eyebrow">02 / SOURCE INTAKE</div><h2>Register a financial report</h2></div><span className="tag">PDF · XLSX · XLS · CSV</span></div>
-      <p className="muted">Current endpoint checks the file and creates a SHA-256 fingerprint only. It does not yet extract figures or permanently store the document. Do not treat a fingerprint as a completed upload.</p>
+      <p className="muted">Reports are uploaded to a private Supabase Storage bucket under your user ID. Metadata and SHA-256 fingerprints are recorded separately. This stage stores the source; it does not yet extract or validate financial figures.</p>
+      <div className="document-meta">
+        <label>Document type<select value={documentType} onChange={e=>setDocumentType(e.target.value)}><option value="annual_report">Annual report</option><option value="quarterly_report">Quarterly report</option><option value="financial_statement">Financial statement</option><option value="other">Other</option></select></label>
+        <label>Fiscal year (optional)<input type="number" min="1900" max="2200" placeholder="e.g. 2025" value={fiscalYear} onChange={e=>setFiscalYear(e.target.value)}/></label>
+        <label>Statement scope<select value={statementScope} onChange={e=>setStatementScope(e.target.value)}><option value="consolidated">Consolidated</option><option value="standalone">Standalone</option><option value="unknown">Unknown</option></select></label>
+      </div>
       <label className="dropzone">
         <UploadCloud size={28}/><strong>{file ? file.name : "Choose an annual report or financial workbook"}</strong>
         <span>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "Select a file from your device · Maximum 25 MB"}</span>
@@ -285,7 +305,10 @@ export default function App() {
       </label>
       <button className="submit" onClick={inspectFile} disabled={!file || busy}>{busy ? "Inspecting source…" : "Inspect source document"}</button>
       {error && <div className="notice error">{error}</div>}
-      {result && <div className="notice success"><strong>Source fingerprint created</strong><p>{result.message}</p><small>{result.filename} · {result.size_bytes.toLocaleString()} bytes · {result.extraction_status}</small><code>{result.sha256}</code></div>}
+      {result && <div className="notice success"><strong>Private source stored</strong><p>{result.message}</p><small>{result.filename} · {result.size_bytes.toLocaleString()} bytes · {result.extraction_status}</small><code>{result.sha256}</code></div>}
+      {documentError && <div className="notice error">{documentError}</div>}
+      <div className="history-heading"><strong>Your private source library</strong><span>{documents.length} stored document(s)</span></div>
+      {documents.length === 0 ? <p className="muted">No reports stored yet. Upload a company filing to begin your source register.</p> : <div className="document-list">{documents.map(document=><article className="document-item" key={document.id}><div><strong>{document.original_filename}</strong><span>{document.document_type.replaceAll("_"," ")} · {document.fiscal_year ?? "Year not set"} · {document.statement_scope} · {(document.size_bytes/1024/1024).toFixed(2)} MB</span></div><button className="secondary" onClick={()=>downloadDocument(document)}><FileText size={14}/> Download</button></article>)}</div>}
     </section>
 
     <section className="workflow">
