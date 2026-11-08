@@ -80,6 +80,8 @@ def run_fundamental_scenario(payload: Any) -> dict[str, Any]:
     negative_any_year = 0
     growth_above_hurdle = 0
     stress_negative_any_year = 0
+    terminal_revenue_below_start = 0
+    cumulative_fcf_negative = 0
 
     current_revenue = revenues[-1]
     for _ in range(payload.simulations):
@@ -113,6 +115,8 @@ def run_fundamental_scenario(payload: Any) -> dict[str, Any]:
 
         terminal_revenues.append(revenue)
         cumulative_fcfs.append(cumulative_fcf)
+        terminal_revenue_below_start += int(revenue < current_revenue)
+        cumulative_fcf_negative += int(cumulative_fcf < 0)
         positive_all_years += int(all_positive)
         negative_any_year += int(any_negative)
         stress_negative_any_year += int(stress_any_negative)
@@ -124,8 +128,10 @@ def run_fundamental_scenario(payload: Any) -> dict[str, Any]:
     return {
         "ticker": payload.ticker,
         "model": "Bayesian-shrunk growth + Monte Carlo cash-flow scenarios",
+        "model_version": "1.0.0",
         "status": "scenario_estimate_not_forecast",
         "horizon_years": payload.forecast_years,
+        "growth_hurdle": payload.growth_hurdle,
         "simulations": n,
         "data_points": len(history),
         "historical_growth_rates": [round(value, 4) for value in growth_rates],
@@ -140,6 +146,8 @@ def run_fundamental_scenario(payload: Any) -> dict[str, Any]:
             "all_forecast_years_fcf_positive": probability(positive_all_years),
             "at_least_one_forecast_year_fcf_negative": probability(negative_any_year),
             "revenue_cagr_meets_hurdle": probability(growth_above_hurdle),
+            "terminal_revenue_below_starting_revenue": probability(terminal_revenue_below_start),
+            "cumulative_fcf_negative": probability(cumulative_fcf_negative),
         },
         "stress_case": {
             "growth_delta_per_year": payload.stress_growth_delta,
@@ -150,7 +158,7 @@ def run_fundamental_scenario(payload: Any) -> dict[str, Any]:
             "p10": round(_quantile(terminal_revenues, 0.10), 2),
             "median": round(_quantile(terminal_revenues, 0.50), 2),
             "p90": round(_quantile(terminal_revenues, 0.90), 2),
-            "currency": "as_supplied",
+            "unit": "same_as_input",
         },
         "cumulative_fcf": {
             "p10": round(_quantile(cumulative_fcfs, 0.10), 2),
