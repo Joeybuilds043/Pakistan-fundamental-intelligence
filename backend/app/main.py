@@ -4,12 +4,13 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import APP_ENV, CORS_ORIGINS, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
-from .schemas import DocumentInspection, HealthResponse
+from .quant import run_fundamental_scenario
+from .schemas import DocumentInspection, HealthResponse, QuantScenarioRequest
 
 app = FastAPI(
     title="Pakistan Fundamental Intelligence API",
-    version="0.1.0",
-    description="Source-traceable fundamental research API for PSX-listed companies.",
+    version="0.2.0",
+    description="Source-traceable fundamental research and quantitative scenario API for PSX-listed companies.",
 )
 
 app.add_middleware(
@@ -35,9 +36,10 @@ ALLOWED_CONTENT_TYPES = {
 def root():
     return {
         "name": "Pakistan Fundamental Intelligence API",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "environment": APP_ENV,
         "docs": "/docs",
+        "capabilities": ["source_inspection", "quantitative_scenarios"],
     }
 
 
@@ -73,8 +75,6 @@ async def inspect_document(file: UploadFile = File(...)):
             detail=f"File exceeds the {MAX_UPLOAD_MB} MB upload limit.",
         )
 
-    # This endpoint validates and fingerprints the source only. It does not
-    # claim to extract or verify financial figures, and does not persist files.
     return DocumentInspection(
         filename=filename,
         content_type=file.content_type or "application/octet-stream",
@@ -85,3 +85,22 @@ async def inspect_document(file: UploadFile = File(...)):
             "No financial figures were extracted and no file was stored."
         ),
     )
+
+
+@app.post("/v1/quant/scenario", tags=["quantitative research"])
+def quantitative_scenario(request: QuantScenarioRequest):
+    years = [point.fiscal_year for point in request.history]
+    if years != sorted(set(years)):
+        raise HTTPException(
+            status_code=422,
+            detail="Annual observations must have unique, strictly increasing fiscal years.",
+        )
+    if any(years[index] - years[index - 1] > 2 for index in range(1, len(years))):
+        raise HTTPException(
+            status_code=422,
+            detail="A gap greater than one missing fiscal year requires manual review.",
+        )
+    try:
+        return run_fundamental_scenario(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
