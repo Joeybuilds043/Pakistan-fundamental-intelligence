@@ -4,8 +4,9 @@
 - [x] Repository and deployment architecture
 - [x] Supabase project and initial secured schema
 - [x] FastAPI health and source-inspection endpoint
-- [x] React research shell and upload inspection UI
-- [x] Streamlit session-only intake prototype
+- [x] React research terminal
+- [x] Bayesian + Monte Carlo Quant Lab and API endpoint
+- [x] Quantitative model policy and reproducibility tests
 - [ ] Connect durable private object storage
 - [ ] Implement authenticated upload and ownership checks
 
@@ -15,6 +16,7 @@
 - Human review and correction workflow
 - Duplicate detection and document versioning
 - Extraction confidence and validation status
+- Balance-sheet, cash-flow and income-statement reconciliation
 
 ## Stage 3 — Fundamental analysis
 - Revenue, gross profit, operating profit, net income and EPS trends
@@ -23,6 +25,7 @@
 - Debt maturity, interest coverage and liquidity
 - ROE, ROA, ROIC and reinvestment analysis
 - Capital allocation and dilution history
+- Sector-specific accounting and ratio treatment (banks, insurers, energy, cement, technology)
 
 ## Stage 4 — Valuation and decision support
 - Peer-group definition and comparable multiples
@@ -30,7 +33,15 @@
 - Scenario analysis and downside cases
 - Investment memo with source-linked claims
 
-## Stage 5 — International expansion
+## Stage 5 — Quant model validation
+- Point-in-time PSX price/fundamental dataset with publication dates
+- Delisted-company coverage and survivorship-bias controls
+- Rolling-origin out-of-sample backtests
+- Brier score, log loss, calibration curves and interval coverage
+- Baselines, model versioning and drift monitoring
+- Sector-specific priors calibrated only from adequate samples
+
+## Stage 6 — International expansion
 - Multi-market identifiers, currencies and fiscal calendars
 - Country-specific accounting and filing conventions
 - Market-specific data adapters
