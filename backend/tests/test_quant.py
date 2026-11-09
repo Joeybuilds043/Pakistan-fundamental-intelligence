@@ -33,6 +33,10 @@ def test_quant_scenario_is_reproducible_and_bounded():
         assert 0 <= value <= 1
     assert first["terminal_revenue"]["p10"] <= first["terminal_revenue"]["median"]
     assert first["terminal_revenue"]["median"] <= first["terminal_revenue"]["p90"]
+    assert len(first["distribution_histograms"]["terminal_revenue"]) == 14
+    assert len(first["distribution_histograms"]["cumulative_fcf"]) == 14
+    assert sum(item["count"] for item in first["distribution_histograms"]["terminal_revenue"]) == 2000
+    assert first["risk_statistics"]["cumulative_fcf_lower_decile_mean"] <= first["risk_statistics"]["cumulative_fcf_mean"]
 
 
 def test_quant_requires_four_annual_observations():

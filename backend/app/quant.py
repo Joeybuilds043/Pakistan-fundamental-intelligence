@@ -29,6 +29,32 @@ def _normal_draw(rng: random.Random, mean: float, std: float) -> float:
     return rng.gauss(mean, max(std, 1e-6))
 
 
+def _histogram(values: list[float], bins: int = 14) -> list[dict[str, float | int]]:
+    low, high = min(values), max(values)
+    if math.isclose(low, high):
+        pad = max(abs(low) * 0.01, 1.0)
+        low, high = low - pad, high + pad
+    width = (high - low) / bins
+    counts = [0] * bins
+    for value in values:
+        index = min(int((value - low) / width), bins - 1)
+        counts[max(index, 0)] += 1
+    return [
+        {
+            "lower": round(low + index * width, 2),
+            "upper": round(low + (index + 1) * width, 2),
+            "count": count,
+        }
+        for index, count in enumerate(counts)
+    ]
+
+
+def _lower_tail_mean(values: list[float], fraction: float = 0.10) -> float:
+    ordered = sorted(values)
+    count = max(1, math.ceil(len(ordered) * fraction))
+    return statistics.mean(ordered[:count])
+
+
 def run_fundamental_scenario(payload: Any) -> dict[str, Any]:
     history = payload.history
     revenues = [float(row.revenue) for row in history]
@@ -165,6 +191,16 @@ def run_fundamental_scenario(payload: Any) -> dict[str, Any]:
             "median": round(_quantile(cumulative_fcfs, 0.50), 2),
             "p90": round(_quantile(cumulative_fcfs, 0.90), 2),
             "currency": "as_supplied",
+        },
+        "distribution_histograms": {
+            "terminal_revenue": _histogram(terminal_revenues),
+            "cumulative_fcf": _histogram(cumulative_fcfs),
+        },
+        "risk_statistics": {
+            "terminal_revenue_mean": round(statistics.mean(terminal_revenues), 2),
+            "terminal_revenue_std_dev": round(statistics.stdev(terminal_revenues), 2),
+            "cumulative_fcf_mean": round(statistics.mean(cumulative_fcfs), 2),
+            "cumulative_fcf_lower_decile_mean": round(_lower_tail_mean(cumulative_fcfs), 2),
         },
         "limitations": [
             "Probabilities are conditional on supplied history and analyst priors, not calibrated market odds.",

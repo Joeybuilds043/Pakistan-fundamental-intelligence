@@ -73,3 +73,20 @@ def test_quant_rejects_non_ascending_fiscal_years():
         },
     )
     assert response.status_code == 422
+
+def test_analyze_pdf_rejects_invalid_pdf_signature():
+    response = client.post(
+        "/v1/documents/analyze",
+        files={"file": ("annual-report.pdf", b"not a real PDF", "application/pdf")},
+    )
+    assert response.status_code == 422
+    assert "valid PDF signature" in response.json()["detail"]
+
+
+def test_analyze_pdf_rejects_non_pdf_file():
+    response = client.post(
+        "/v1/documents/analyze",
+        files={"file": ("annual-report.csv", b"revenue,100", "text/csv")},
+    )
+    assert response.status_code == 415
+
