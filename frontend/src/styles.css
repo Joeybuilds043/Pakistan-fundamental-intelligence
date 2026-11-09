@@ -65,3 +65,62 @@ a{color:inherit;text-decoration:none}.shell{max-width:1160px;margin:auto;padding
 .ratio-grid article small{display:block;color:#71869e;font-size:9px;line-height:1.5}
 .candidate-values select{width:100%;max-width:170px;padding:6px 8px;background:#101e2e;border:1px solid #35516e;border-radius:5px;color:#c4ddf3;font:10px 'DM Mono'}
 @media(max-width:700px){.ratio-grid{grid-template-columns:1fr 1fr}.candidate-values select{max-width:100%}}
+
+
+/* PFI monochrome + green system: 60% black, 30% white, 10% green */
+:root{
+  color-scheme:dark;
+  --pfi-black:#050705;
+  --pfi-panel:#0d110e;
+  --pfi-panel-raised:#141a15;
+  --pfi-white:#f1f5f1;
+  --pfi-muted:#a3ada4;
+  --pfi-line:#303a31;
+  --pfi-green:#39d477;
+  --pfi-green-deep:#123b25;
+}
+body,.auth-screen{background:var(--pfi-black);color:var(--pfi-white)}
+.topbar,footer{border-color:var(--pfi-line)}
+.brand-mark{border-color:var(--pfi-green);color:var(--pfi-green);background:#0a100b}
+.status i{background:var(--pfi-green)}
+.eyebrow,.workflow .steps article>span{color:var(--pfi-green)}
+.hero h1 em{color:var(--pfi-white)}
+.lead,.muted,.steps p,.history-heading span,.history-labels,.candidate-row small,.candidate-source{color:var(--pfi-muted)}
+.metrics article,.workspace,.auth-card,.analysis-panel,.probability-grid article,.distribution-grid article,.histogram-grid article,.risk-stats article,.ratio-grid article,.document-item{background:var(--pfi-panel);border-color:var(--pfi-line)}
+.metrics svg{color:var(--pfi-green)}
+.metrics strong,.candidate-row strong,.ratio-grid article strong{color:var(--pfi-white)}
+.primary-link,.submit{background:var(--pfi-green);color:#041008}
+.primary-link:hover,.submit:hover{filter:brightness(1.08)}
+.dropzone{border-color:#52745c;color:var(--pfi-green)}
+.dropzone strong{color:var(--pfi-white)}
+.notice.success{background:var(--pfi-green-deep);border-color:#287b49}
+.notice.error{background:#241313;border-color:#754040}
+.secondary,.signout{border-color:#526254;color:#dce7dd}
+.secondary:hover,.signout:hover{border-color:var(--pfi-green);color:var(--pfi-green)}
+.quant-controls input,.quant-controls select,.history-row input,.auth-form input,.document-meta input,.document-meta select{background:#080b08;border-color:var(--pfi-line);color:var(--pfi-white)}
+.quant-controls input:focus,.quant-controls select:focus,.history-row input:focus,.auth-form input:focus,.document-meta input:focus,.document-meta select:focus{border-color:var(--pfi-green)}
+.probability-grid strong{color:var(--pfi-green)}
+.histogram-grid rect{fill:var(--pfi-green);opacity:.88}
+.histogram-grid line{stroke:#879287}
+.ratio-grid article{background:var(--pfi-panel-raised)}
+.ratio-grid article span,.ratio-grid article small{color:var(--pfi-muted)}
+.candidate-values{color:var(--pfi-green)}
+.candidate-values select{background:#0a100b;border-color:#41634a;color:var(--pfi-white)}
+.candidate-head{background:#171d18;color:var(--pfi-muted)}
+.document-status{color:var(--pfi-green)}
+.analysis-warning{color:#d6e4d8;border-color:var(--pfi-green)}
+.ocr-note{display:flex;gap:10px;align-items:flex-start;margin-top:14px;padding:12px 14px;border:1px solid #315b3d;border-left:3px solid var(--pfi-green);border-radius:7px;background:#0b160e;font-size:11px;line-height:1.6}
+.ocr-note strong{color:var(--pfi-green);white-space:nowrap}
+.ocr-note span{color:var(--pfi-muted)}
+.ratio-review{border-color:var(--pfi-line)}
+.ratio-review h4{color:var(--pfi-white)}
+.health-chart{margin:16px 0;padding:17px;border:1px solid var(--pfi-line);border-radius:8px;background:#090d0a}
+.health-chart-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:15px;font-size:11px}
+.health-chart-head span{color:var(--pfi-muted);font:9px 'DM Mono'}
+.health-bar-row{display:grid;grid-template-columns:minmax(115px,1fr) minmax(90px,2fr) 58px;gap:10px;align-items:center;margin:11px 0;font-size:10px;color:var(--pfi-muted)}
+.health-track{height:9px;border-radius:20px;background:#252d26;overflow:hidden}
+.health-track i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#1e8d4d,var(--pfi-green))}
+.health-bar-row b{color:var(--pfi-white);font:10px 'DM Mono';text-align:right}
+.ratio-grid article.metric-populated{border-color:#34513a}
+.ratio-grid article.metric-missing{opacity:.72}
+@media(max-width:520px){.ocr-note{flex-direction:column;gap:3px}.health-bar-row{grid-template-columns:105px minmax(55px,1fr) 52px;gap:7px;font-size:9px}}
