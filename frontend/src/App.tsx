@@ -158,12 +158,13 @@ export default function App() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "PDF extraction failed.");
       const extracted = payload as AnalysisResult;
+      const persistedStatus = "needs_review";
       setAnalysis(extracted);
       setCandidateSelections(Object.fromEntries(extracted.candidates.map((_, index) => [index, 0])));
       const { error: updateError } = await supabase.from("source_documents")
-        .update({ extraction_status: extracted.extraction_status }).eq("id", document.id);
+        .update({ extraction_status: persistedStatus }).eq("id", document.id);
       if (updateError) setAnalysisError("Extraction succeeded, but its status could not be saved: " + updateError.message);
-      setDocuments(current => current.map(item => item.id === document.id ? { ...item, extraction_status: extracted.extraction_status } : item));
+      else setDocuments(current => current.map(item => item.id === document.id ? { ...item, extraction_status: persistedStatus } : item));
     } catch (e) {
       setAnalysisError(e instanceof Error ? e.message : "Could not analyze the stored report.");
     } finally { setAnalyzingId(null); }
@@ -226,10 +227,11 @@ export default function App() {
         extractionFailure = "The source is stored. Automatic extraction currently supports text-based PDFs; spreadsheet extraction is not enabled yet.";
       }
       if (extracted) {
+        const persistedStatus = "needs_review";
         const { error: statusError } = await supabase.from("source_documents")
-          .update({ extraction_status: extracted.extraction_status }).eq("id", saved.id);
+          .update({ extraction_status: persistedStatus }).eq("id", saved.id);
         if (statusError) extractionFailure = "Extraction completed, but its status could not be saved: " + statusError.message;
-        else setDocuments(current => current.map(item => item.id === saved.id ? { ...item, extraction_status: extracted!.extraction_status } : item));
+        else setDocuments(current => current.map(item => item.id === saved.id ? { ...item, extraction_status: persistedStatus } : item));
       }
       setAnalysis(extracted);
       setCandidateSelections(extracted ? Object.fromEntries(extracted.candidates.map((_, index) => [index, 0])) : {});
