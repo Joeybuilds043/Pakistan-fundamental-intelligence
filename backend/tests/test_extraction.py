@@ -80,8 +80,8 @@ def test_scanned_pdf_uses_ocr_and_marks_candidates_for_review(monkeypatch):
     monkeypatch.setattr(
         "app.extraction._ocr_page",
         lambda document, page_index: (
-            "Statement of Profit or Loss\\n"
-            "Revenue from contracts with customers 12,450 10,200\\n"
+            "Statement of Profit or Loss\n"
+            "Revenue from contracts with customers 12,450 10,200\n"
             "Profit after tax 1,250 900"
         ),
     )
