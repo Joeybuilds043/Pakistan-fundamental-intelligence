@@ -124,3 +124,5 @@ body,.auth-screen{background:var(--pfi-black);color:var(--pfi-white)}
 .ratio-grid article.metric-populated{border-color:#34513a}
 .ratio-grid article.metric-missing{opacity:.72}
 @media(max-width:520px){.ocr-note{flex-direction:column;gap:3px}.health-bar-row{grid-template-columns:105px minmax(55px,1fr) 52px;gap:7px;font-size:9px}}
+
+.health-track i.negative{background:var(--pfi-white)}
