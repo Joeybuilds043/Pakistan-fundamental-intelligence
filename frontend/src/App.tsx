@@ -222,6 +222,12 @@ export default function App() {
       } else {
         extractionFailure = "The source is stored. Automatic extraction currently supports text-based PDFs; spreadsheet extraction is not enabled yet.";
       }
+      if (extracted) {
+        const { error: statusError } = await supabase.from("source_documents")
+          .update({ extraction_status: extracted.extraction_status }).eq("id", saved.id);
+        if (statusError) extractionFailure = "Extraction completed, but its status could not be saved: " + statusError.message;
+        else setDocuments(current => current.map(item => item.id === saved.id ? { ...item, extraction_status: extracted!.extraction_status } : item));
+      }
       setAnalysis(extracted);
       setAnalysisError(extractionFailure);
       setResult({
