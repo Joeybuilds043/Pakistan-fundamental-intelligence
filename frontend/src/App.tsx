@@ -12,7 +12,7 @@ type Inspection = {
 };
 type ExtractedCandidate = {
   metric_code: string; label: string; values: { raw: string; value: number }[];
-  page: number; source_line: string; confidence: string; unit: string; period: string; scope: string;
+  page: number; source_line: string; confidence: string; extraction_method?: "text" | "ocr"; unit: string; period: string; scope: string;
 };
 type AnalysisResult = {
   extraction_status: string; page_count: number; candidate_count: number;
@@ -451,9 +451,9 @@ export default function App() {
             <span className="candidate-values">{candidate.values.length > 1
               ? <select value={candidateSelections[index] ?? 0} onChange={event=>setCandidateSelections(current=>({...current,[index]:Number(event.target.value)}))}>{candidate.values.map((value,valueIndex)=><option value={valueIndex} key={valueIndex}>{value.raw}</option>)}</select>
               : candidate.values[0]?.raw ?? "—"}</span>
-            <span className="candidate-source">Page {candidate.page}</span>
+            <span className="candidate-source">Page {candidate.page}<small>{candidate.extraction_method === "ocr" ? "OCR · verify carefully" : "PDF text"}</small></span>
           </div>)}
-        </div> : <div className="notice error">No usable text-based financial rows were found. A scanned PDF may require OCR.</div>}
+        </div> : <div className="notice error">No supported financial line items could be extracted. The PDF may be scanned, low quality, or use unfamiliar labels.</div>}
         {ratioCards.length > 0 && <div className="ratio-review">
           <div className="eyebrow">PROVISIONAL ANALYSIS</div><h4>Financial health snapshot</h4>
           <p className="muted">Calculated only where a metric has one detected source row. Select the correct current-period column above. Duplicate rows and missing inputs remain unavailable rather than being guessed.</p>

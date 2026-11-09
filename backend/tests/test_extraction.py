@@ -55,3 +55,43 @@ def test_extract_pdf_returns_reviewable_page_referenced_candidates(monkeypatch):
     ]
     assert result["candidates"][0]["values"][0]["value"] == 12450
     assert result["candidates"][0]["page"] == 1
+
+
+def test_scanned_pdf_uses_ocr_and_marks_candidates_for_review(monkeypatch):
+    class FakePage:
+        def extract_text(self):
+            return None
+
+    class FakePdf:
+        pages = [FakePage()]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    class FakeOcrDocument:
+        def close(self):
+            pass
+
+    monkeypatch.setattr("app.extraction.pdfplumber.open", lambda _: FakePdf())
+    monkeypatch.setattr("app.extraction.fitz.open", lambda **kwargs: FakeOcrDocument())
+    monkeypatch.setattr(
+        "app.extraction._ocr_page",
+        lambda document, page_index: (
+            "Statement of Profit or Loss\\n"
+            "Revenue from contracts with customers 12,450 10,200\\n"
+            "Profit after tax 1,250 900"
+        ),
+    )
+
+    result = extract_pdf_candidates(b"%PDF-scanned-test")
+
+    assert result["extraction_status"] == "review_required"
+    assert result["ocr_page_count"] == 1
+    assert result["ocr_pages"] == [1]
+    assert result["candidate_count"] == 2
+    assert all(row["extraction_method"] == "ocr" for row in result["candidates"])
+    assert all(row["confidence"] == "review_required" for row in result["candidates"])
+    assert any("OCR was used" in warning for warning in result["warnings"])
