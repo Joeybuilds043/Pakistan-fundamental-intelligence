@@ -321,10 +321,10 @@ export default function App() {
     { label: "Debt / equity", value: ratio(getMetric("total_borrowings"), getMetric("total_equity")), percentage: false, formula: "Borrowings / total equity" },
     { label: "Cash conversion", value: ratio(getMetric("operating_cash_flow"), getMetric("profit_after_tax")), percentage: false, formula: "Operating cash flow / profit after tax" },
     { label: "Interest coverage", value: ratio(getMetric("operating_profit"), getMetric("finance_cost")), percentage: false, formula: "Operating profit / finance cost" },
-    { label: "ROA", value: ratio(getMetric("profit_after_tax"), getMetric("total_assets")), percentage: true, formula: "Profit after tax / total assets" },
-    { label: "ROE", value: ratio(getMetric("profit_after_tax"), getMetric("total_equity")), percentage: true, formula: "Profit after tax / total equity" },
-    { label: "Free cash flow", value: fcf, percentage: false, formula: "Operating cash flow − capital expenditure" },
-    { label: "FCF margin", value: ratio(fcf ?? undefined, getMetric("revenue")), percentage: true, formula: "Free cash flow / revenue" },
+    { label: "ROA (closing assets)", value: ratio(getMetric("profit_after_tax"), getMetric("total_assets")), percentage: true, formula: "Profit after tax / closing total assets" },
+    { label: "ROE (closing equity)", value: ratio(getMetric("profit_after_tax"), getMetric("total_equity")), percentage: true, formula: "Profit after tax / closing total equity" },
+    { label: "Cash flow after capex", value: fcf, percentage: false, formula: "Operating cash flow − capital expenditure" },
+    { label: "Post-capex cash margin", value: ratio(fcf ?? undefined, getMetric("revenue")), percentage: true, formula: "Cash flow after capex / revenue" },
   ] : [];
 
   if (!supabase) return <main className="auth-screen"><section className="auth-card"><div className="brand-mark">PFI</div><h1>Supabase configuration required</h1><p>Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to Cloudflare Pages environment variables, then redeploy.</p></section></main>;
@@ -363,7 +363,7 @@ export default function App() {
 
     <section className="workspace quant-workspace" id="quant">
       <div className="section-head"><div><div className="eyebrow">01 / QUANTITATIVE RESEARCH</div><h2>Fundamental scenario lab</h2></div><span className="tag">10,000 SIMULATIONS</span></div>
-      <p className="muted">Enter at least four annual observations from the same reporting basis and currency. The model shrinks historical revenue growth toward an explicit prior, simulates future growth and free-cash-flow margins, then applies a downside shock. These are conditional business scenarios—not stock-return forecasts.</p>
+      <p className="muted">Enter at least four annual observations from the same reporting basis and currency. The model shrinks historical revenue growth toward an explicit prior, simulates future growth and post-capex cash-flow margins, then applies a downside shock. These are conditional business scenarios—not stock-return forecasts.</p>
       <form onSubmit={runQuant}>
         <div className="quant-controls">
           <label>PSX ticker<input value={ticker} onChange={e=>setTicker(e.target.value)} placeholder="e.g. LUCK" required maxLength={20}/></label>
@@ -387,21 +387,21 @@ export default function App() {
       {quantResult && <div className="quant-results">
         <div className="result-title"><div><div className="eyebrow">{quantResult.ticker} / MODEL OUTPUT</div><h3>Conditional scenario distribution</h3></div><span className="tag">MODEL {quantResult.model_version} · {quantResult.simulations.toLocaleString()} RUNS</span></div>
         <div className="probability-grid">
-          <article><span>At least one negative FCF year</span><strong>{pct(quantResult.base_case_probabilities.at_least_one_forecast_year_fcf_negative)}</strong></article>
+          <article><span>At least one negative post-capex cash flow year</span><strong>{pct(quantResult.base_case_probabilities.at_least_one_forecast_year_fcf_negative)}</strong></article>
           <article><span>Terminal revenue below starting level</span><strong>{pct(quantResult.base_case_probabilities.terminal_revenue_below_starting_revenue)}</strong></article>
-          <article><span>Cumulative forecast FCF negative</span><strong>{pct(quantResult.base_case_probabilities.cumulative_fcf_negative)}</strong></article>
+          <article><span>Cumulative post-capex cash flow negative</span><strong>{pct(quantResult.base_case_probabilities.cumulative_fcf_negative)}</strong></article>
           <article><span>Revenue CAGR meets {pct(quantResult.growth_hurdle)} hurdle</span><strong>{pct(quantResult.base_case_probabilities.revenue_cagr_meets_hurdle)}</strong></article>
-          <article><span>Stress: any negative FCF year</span><strong>{pct(quantResult.stress_case.probability_any_year_fcf_negative)}</strong></article>
+          <article><span>Stress: any negative post-capex cash flow year</span><strong>{pct(quantResult.stress_case.probability_any_year_fcf_negative)}</strong></article>
         </div>
         <div className="distribution-grid">
           <article><h4>Terminal revenue</h4><div><span>P10</span><b>{number(quantResult.terminal_revenue.p10)}</b></div><div><span>Median</span><b>{number(quantResult.terminal_revenue.median)}</b></div><div><span>P90</span><b>{number(quantResult.terminal_revenue.p90)}</b></div></article>
-          <article><h4>Cumulative free cash flow</h4><div><span>P10</span><b>{number(quantResult.cumulative_fcf.p10)}</b></div><div><span>Median</span><b>{number(quantResult.cumulative_fcf.median)}</b></div><div><span>P90</span><b>{number(quantResult.cumulative_fcf.p90)}</b></div></article>
+          <article><h4>Cumulative cash flow after capex</h4><div><span>P10</span><b>{number(quantResult.cumulative_fcf.p10)}</b></div><div><span>Median</span><b>{number(quantResult.cumulative_fcf.median)}</b></div><div><span>P90</span><b>{number(quantResult.cumulative_fcf.p90)}</b></div></article>
           <article><h4>Bayesian growth posterior</h4><div><span>Mean</span><b>{pct(quantResult.posterior_revenue_growth.mean)}</b></div><div><span>Std. deviation</span><b>{pct(quantResult.posterior_revenue_growth.std_dev)}</b></div><div><span>Prior mean</span><b>{pct(quantResult.posterior_revenue_growth.prior_mean)}</b></div></article>
         </div>
         <div className="histogram-grid">
           {([
             ["Terminal revenue simulation", quantResult.distribution_histograms.terminal_revenue],
-            ["Cumulative FCF simulation", quantResult.distribution_histograms.cumulative_fcf],
+            ["Cumulative cash flow after capex simulation", quantResult.distribution_histograms.cumulative_fcf],
           ] as const).map(([title,bins]) => {
             const maxCount = Math.max(...bins.map(bin=>bin.count),1);
             return <article key={title}><h4>{title}</h4><svg viewBox="0 0 560 150" role="img" aria-label={title + " histogram"} preserveAspectRatio="none">
@@ -414,7 +414,7 @@ export default function App() {
           <article><span>Mean terminal revenue</span><strong>{number(quantResult.risk_statistics.terminal_revenue_mean)}</strong></article>
           <article><span>Terminal revenue volatility (σ)</span><strong>{number(quantResult.risk_statistics.terminal_revenue_std_dev)}</strong></article>
           <article><span>Mean cumulative FCF</span><strong>{number(quantResult.risk_statistics.cumulative_fcf_mean)}</strong></article>
-          <article><span>Average worst-decile cumulative FCF</span><strong>{number(quantResult.risk_statistics.cumulative_fcf_lower_decile_mean)}</strong></article>
+          <article><span>Average worst-decile cash flow after capex</span><strong>{number(quantResult.risk_statistics.cumulative_fcf_lower_decile_mean)}</strong></article>
         </div>
         <p className="result-disclaimer">Amounts use the units and currency you entered. The model assumes a supplied sector prior (8% mean, 12% standard deviation) and fixed stress shocks. The hurdle is {pct(quantResult.growth_hurdle)}. Results are not calibrated market odds, intrinsic value or expected share returns.</p>
         <details><summary>Model limitations and validation requirements</summary><ul>{quantResult.limitations.map(item=><li key={item}>{item}</li>)}</ul></details>
@@ -456,7 +456,7 @@ export default function App() {
           <div className="eyebrow">PROVISIONAL ANALYSIS</div><h4>Financial health snapshot</h4>
           <p className="muted">Calculated only where a metric has one detected source row. Select the correct current-period column above. Duplicate rows and missing inputs remain unavailable rather than being guessed.</p>
           <div className="ratio-grid">{ratioCards.map(card=><article key={card.label}>
-            <span>{card.label}</span><strong>{card.label === "Free cash flow" ? (card.value === null ? "—" : number(card.value)) : ratioText(card.value,card.percentage)}</strong><small>{card.formula}</small>
+            <span>{card.label}</span><strong>{card.label === "Cash flow after capex" ? (card.value === null ? "—" : number(card.value)) : ratioText(card.value,card.percentage)}</strong><small>{card.formula}</small>
           </article>)}</div>
           <p className="result-disclaimer">This snapshot is not yet saved as validated financial observations. Confirm the reporting period, scope and unit before relying on it. Cash conversion, margins and balance-sheet ratios require consistent statement units.</p>
         </div>}
