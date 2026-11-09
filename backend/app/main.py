@@ -35,10 +35,10 @@ ALLOWED_CONTENT_TYPES = {
 
 
 async def require_authenticated_user(authorization: str | None = Header(default=None)):
-    if not SUPABASE_URL or not SUPABASE_PUBLISHABLE_KEY:
-        raise HTTPException(status_code=503, detail="Authentication service is not configured.")
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Sign in before analyzing a report.")
+    if not SUPABASE_URL or not SUPABASE_PUBLISHABLE_KEY:
+        raise HTTPException(status_code=503, detail="Authentication service is not configured.")
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             response = await client.get(
