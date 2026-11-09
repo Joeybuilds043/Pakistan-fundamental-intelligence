@@ -39,6 +39,14 @@ type QuantResult = {
   stress_case: { growth_delta_per_year: number; fcf_margin_delta: number; probability_any_year_fcf_negative: number };
   terminal_revenue: { p10: number; median: number; p90: number; currency: string };
   cumulative_fcf: { p10: number; median: number; p90: number; currency: string };
+  distribution_histograms: {
+    terminal_revenue: { lower: number; upper: number; count: number }[];
+    cumulative_fcf: { lower: number; upper: number; count: number }[];
+  };
+  risk_statistics: {
+    terminal_revenue_mean: number; terminal_revenue_std_dev: number;
+    cumulative_fcf_mean: number; cumulative_fcf_lower_decile_mean: number;
+  };
   limitations: string[];
 };
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -222,6 +230,13 @@ export default function App() {
       if (history.some(row => !row.fiscal_year || !row.revenue || !Number.isFinite(row.operating_cash_flow) || !Number.isFinite(row.capex))) {
         throw new Error("Complete every year, revenue, operating cash flow and capex field. Use 0 only when the reported value is genuinely zero.");
       }
+      const years = history.map(row => row.fiscal_year);
+      if (new Set(years).size !== years.length || years.some((year, index) => index > 0 && year <= years[index - 1])) {
+        throw new Error("Enter fiscal years once each, in ascending order from oldest to newest.");
+      }
+      if (years.some((year, index) => index > 0 && year - years[index - 1] > 2)) {
+        throw new Error("There is a gap of more than one missing fiscal year. Review the history before running the model.");
+      }
       const response = await fetch(`${API_URL}/v1/quant/scenario`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -238,7 +253,10 @@ export default function App() {
         }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.detail || "Quantitative analysis failed.");
+      if (!response.ok) {
+        const detail = Array.isArray(payload.detail) ? payload.detail.map((item: { msg?: string }) => item.msg || "Invalid input").join("; ") : payload.detail;
+        throw new Error(detail || "Quantitative analysis failed.");
+      }
       setQuantResult(payload);
     } catch (e) {
       setQuantError(e instanceof Error ? e.message : "Could not run the scenario.");
@@ -315,6 +333,24 @@ export default function App() {
           <article><h4>Terminal revenue</h4><div><span>P10</span><b>{number(quantResult.terminal_revenue.p10)}</b></div><div><span>Median</span><b>{number(quantResult.terminal_revenue.median)}</b></div><div><span>P90</span><b>{number(quantResult.terminal_revenue.p90)}</b></div></article>
           <article><h4>Cumulative free cash flow</h4><div><span>P10</span><b>{number(quantResult.cumulative_fcf.p10)}</b></div><div><span>Median</span><b>{number(quantResult.cumulative_fcf.median)}</b></div><div><span>P90</span><b>{number(quantResult.cumulative_fcf.p90)}</b></div></article>
           <article><h4>Bayesian growth posterior</h4><div><span>Mean</span><b>{pct(quantResult.posterior_revenue_growth.mean)}</b></div><div><span>Std. deviation</span><b>{pct(quantResult.posterior_revenue_growth.std_dev)}</b></div><div><span>Prior mean</span><b>{pct(quantResult.posterior_revenue_growth.prior_mean)}</b></div></article>
+        </div>
+        <div className="histogram-grid">
+          {([
+            ["Terminal revenue simulation", quantResult.distribution_histograms.terminal_revenue],
+            ["Cumulative FCF simulation", quantResult.distribution_histograms.cumulative_fcf],
+          ] as const).map(([title,bins]) => {
+            const maxCount = Math.max(...bins.map(bin=>bin.count),1);
+            return <article key={title}><h4>{title}</h4><svg viewBox="0 0 560 150" role="img" aria-label={title + " histogram"} preserveAspectRatio="none">
+              {bins.map((bin,index)=><rect key={index} x={index*40+3} y={132-(bin.count/maxCount)*112} width="34" height={(bin.count/maxCount)*112} rx="2" />)}
+              <line x1="0" y1="133" x2="560" y2="133" stroke="#42566e" strokeWidth="1"/>
+            </svg><div className="histogram-range"><span>{number(bins[0]?.lower ?? 0)}</span><span>{number(bins[bins.length-1]?.upper ?? 0)}</span></div></article>;
+          })}
+        </div>
+        <div className="risk-stats">
+          <article><span>Mean terminal revenue</span><strong>{number(quantResult.risk_statistics.terminal_revenue_mean)}</strong></article>
+          <article><span>Terminal revenue volatility (σ)</span><strong>{number(quantResult.risk_statistics.terminal_revenue_std_dev)}</strong></article>
+          <article><span>Mean cumulative FCF</span><strong>{number(quantResult.risk_statistics.cumulative_fcf_mean)}</strong></article>
+          <article><span>Average worst-decile cumulative FCF</span><strong>{number(quantResult.risk_statistics.cumulative_fcf_lower_decile_mean)}</strong></article>
         </div>
         <p className="result-disclaimer">Amounts use the units and currency you entered. The model assumes a supplied sector prior (8% mean, 12% standard deviation) and fixed stress shocks. The hurdle is {pct(quantResult.growth_hurdle)}. Results are not calibrated market odds, intrinsic value or expected share returns.</p>
         <details><summary>Model limitations and validation requirements</summary><ul>{quantResult.limitations.map(item=><li key={item}>{item}</li>)}</ul></details>
