@@ -53,6 +53,7 @@ const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replac
 const emptyRow = (): HistoryRow => ({ fiscal_year: "", revenue: "", operating_cash_flow: "", capex: "" });
 const pct = (value: number) => `${(value * 100).toFixed(1)}%`;
 const number = (value: number) => new Intl.NumberFormat("en", { maximumFractionDigits: 1 }).format(value);
+const ratioText = (value: number | null, percentage = false) => value === null || !Number.isFinite(value) ? "—" : percentage ? pct(value) : `${value.toFixed(2)}x`;
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -71,6 +72,7 @@ export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<Inspection | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [candidateSelections, setCandidateSelections] = useState<Record<number, number>>({});
   const [analysisError, setAnalysisError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -157,6 +159,7 @@ export default function App() {
       if (!response.ok) throw new Error(payload.detail || "PDF extraction failed.");
       const extracted = payload as AnalysisResult;
       setAnalysis(extracted);
+      setCandidateSelections(Object.fromEntries(extracted.candidates.map((_, index) => [index, 0])));
       const { error: updateError } = await supabase.from("source_documents")
         .update({ extraction_status: extracted.extraction_status }).eq("id", document.id);
       if (updateError) setAnalysisError("Extraction succeeded, but its status could not be saved: " + updateError.message);
@@ -229,6 +232,7 @@ export default function App() {
         else setDocuments(current => current.map(item => item.id === saved.id ? { ...item, extraction_status: extracted!.extraction_status } : item));
       }
       setAnalysis(extracted);
+      setCandidateSelections(extracted ? Object.fromEntries(extracted.candidates.map((_, index) => [index, 0])) : {});
       setAnalysisError(extractionFailure);
       setResult({
         filename: file.name, size_bytes: file.size, sha256: hash,
@@ -292,6 +296,32 @@ export default function App() {
       setQuantError(e instanceof Error ? e.message : "Could not run the scenario.");
     } finally { setQuantBusy(false); }
   }
+
+  const selectedMetricValues: Record<string, number> = {};
+  analysis?.candidates.forEach((candidate, index) => {
+    const selected = candidate.values[candidateSelections[index] ?? 0];
+    if (selected && selectedMetricValues[candidate.metric_code] === undefined) {
+      selectedMetricValues[candidate.metric_code] = selected.value;
+    }
+  });
+  const getMetric = (code: string) => selectedMetricValues[code];
+  const ratio = (numerator: number | undefined, denominator: number | undefined): number | null =>
+    numerator === undefined || denominator === undefined || denominator === 0 ? null : numerator / denominator;
+  const fcf = getMetric("operating_cash_flow") === undefined || getMetric("capital_expenditure") === undefined
+    ? null : getMetric("operating_cash_flow") - Math.abs(getMetric("capital_expenditure"));
+  const ratioCards = analysis ? [
+    { label: "Gross margin", value: ratio(getMetric("gross_profit"), getMetric("revenue")), percentage: true, formula: "Gross profit / revenue" },
+    { label: "Operating margin", value: ratio(getMetric("operating_profit"), getMetric("revenue")), percentage: true, formula: "Operating profit / revenue" },
+    { label: "Net margin", value: ratio(getMetric("profit_after_tax"), getMetric("revenue")), percentage: true, formula: "Profit after tax / revenue" },
+    { label: "Current ratio", value: ratio(getMetric("current_assets"), getMetric("current_liabilities")), percentage: false, formula: "Current assets / current liabilities" },
+    { label: "Debt / equity", value: ratio(getMetric("total_borrowings"), getMetric("total_equity")), percentage: false, formula: "Borrowings / total equity" },
+    { label: "Cash conversion", value: ratio(getMetric("operating_cash_flow"), getMetric("profit_after_tax")), percentage: false, formula: "Operating cash flow / profit after tax" },
+    { label: "Interest coverage", value: ratio(getMetric("operating_profit"), getMetric("finance_cost")), percentage: false, formula: "Operating profit / finance cost" },
+    { label: "ROA", value: ratio(getMetric("profit_after_tax"), getMetric("total_assets")), percentage: true, formula: "Profit after tax / total assets" },
+    { label: "ROE", value: ratio(getMetric("profit_after_tax"), getMetric("total_equity")), percentage: true, formula: "Profit after tax / total equity" },
+    { label: "Free cash flow", value: fcf, percentage: false, formula: "Operating cash flow − capital expenditure" },
+    { label: "FCF margin", value: ratio(fcf ?? undefined, getMetric("revenue")), percentage: true, formula: "Free cash flow / revenue" },
+  ] : [];
 
   if (!supabase) return <main className="auth-screen"><section className="auth-card"><div className="brand-mark">PFI</div><h1>Supabase configuration required</h1><p>Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to Cloudflare Pages environment variables, then redeploy.</p></section></main>;
   if (authLoading) return <main className="auth-screen"><section className="auth-card"><div className="brand-mark">PFI</div><p>Checking secure session…</p></section></main>;
@@ -389,7 +419,7 @@ export default function App() {
 
     <section className="workspace" id="intake">
       <div className="section-head"><div><div className="eyebrow">02 / SOURCE INTAKE</div><h2>Register a financial report</h2></div><span className="tag">PDF · XLSX · XLS · CSV</span></div>
-      <p className="muted">Reports are uploaded to a private Supabase Storage bucket under your user ID. Metadata and SHA-256 fingerprints are recorded separately. This stage stores the source; it does not yet extract or validate financial figures.</p>
+      <p className="muted">Reports are stored in a private Supabase bucket. Text-based PDFs are then scanned for reviewable financial line-item candidates with page references. Figures remain unverified until you confirm the reporting column, period, currency and units. Spreadsheet extraction is not enabled yet.</p>
       <div className="document-meta">
         <label>Document type<select value={documentType} onChange={e=>setDocumentType(e.target.value)}><option value="annual_report">Annual report</option><option value="quarterly_report">Quarterly report</option><option value="financial_statement">Financial statement</option><option value="other">Other</option></select></label>
         <label>Fiscal year (optional)<input type="number" min="1900" max="2200" placeholder="e.g. 2025" value={fiscalYear} onChange={e=>setFiscalYear(e.target.value)}/></label>
@@ -398,7 +428,7 @@ export default function App() {
       <label className="dropzone">
         <UploadCloud size={28}/><strong>{file ? file.name : "Choose an annual report or financial workbook"}</strong>
         <span>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "Select a file from your device · Maximum 25 MB"}</span>
-        <input type="file" accept=".pdf,.xlsx,.xls,.csv" onChange={e => {setFile(e.target.files?.[0] || null);setResult(null);setAnalysis(null);setAnalysisError("");setError("");}}/>
+        <input type="file" accept=".pdf,.xlsx,.xls,.csv" onChange={e => {setFile(e.target.files?.[0] || null);setResult(null);setAnalysis(null);setCandidateSelections({});setAnalysisError("");setError("");}}/>
       </label>
       <button className="submit" onClick={inspectFile} disabled={!file || busy}>{busy ? "Inspecting source…" : "Inspect source document"}</button>
       {error && <div className="notice error">{error}</div>}
@@ -409,13 +439,23 @@ export default function App() {
         <p className="muted">These are unverified extraction candidates, not approved financial observations. The parser does not guess the year column, currency, unit or statement scope.</p>
         {analysis.warnings.map((warning,index)=><p className="analysis-warning" key={index}>{warning}</p>)}
         {analysis.candidates.length > 0 ? <div className="candidate-table">
-          <div className="candidate-row candidate-head"><span>Metric</span><span>Extracted values</span><span>Source</span></div>
+          <div className="candidate-row candidate-head"><span>Metric / source line</span><span>Choose value column</span><span>Page</span></div>
           {analysis.candidates.map((candidate,index)=><div className="candidate-row" key={index}>
             <span><strong>{candidate.metric_code.replace(/_/g," ")}</strong><small>{candidate.label}</small></span>
-            <span className="candidate-values">{candidate.values.map(value=>value.raw).join("  /  ")}</span>
+            <span className="candidate-values">{candidate.values.length > 1
+              ? <select value={candidateSelections[index] ?? 0} onChange={event=>setCandidateSelections(current=>({...current,[index]:Number(event.target.value)}))}>{candidate.values.map((value,valueIndex)=><option value={valueIndex} key={valueIndex}>{value.raw}</option>)}</select>
+              : candidate.values[0]?.raw ?? "—"}</span>
             <span className="candidate-source">Page {candidate.page}</span>
           </div>)}
         </div> : <div className="notice error">No usable text-based financial rows were found. A scanned PDF may require OCR.</div>}
+        {ratioCards.length > 0 && <div className="ratio-review">
+          <div className="eyebrow">PROVISIONAL ANALYSIS</div><h4>Financial health snapshot</h4>
+          <p className="muted">Calculated from the selected values. Choose the correct current-period column above. Missing inputs remain unavailable; no sector judgement is applied yet.</p>
+          <div className="ratio-grid">{ratioCards.map(card=><article key={card.label}>
+            <span>{card.label}</span><strong>{card.label === "Free cash flow" ? (card.value === null ? "—" : number(card.value)) : ratioText(card.value,card.percentage)}</strong><small>{card.formula}</small>
+          </article>)}</div>
+          <p className="result-disclaimer">This snapshot is not yet saved as validated financial observations. Confirm the reporting period, scope and unit before relying on it. Cash conversion, margins and balance-sheet ratios require consistent statement units.</p>
+        </div>}
       </div>}
       {documentError && <div className="notice error">{documentError}</div>}
       <div className="history-heading"><strong>Your private source library</strong><span>{documents.length} stored document(s)</span></div>
