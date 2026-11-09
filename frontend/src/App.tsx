@@ -16,7 +16,7 @@ type ExtractedCandidate = {
 };
 type AnalysisResult = {
   extraction_status: string; page_count: number; candidate_count: number;
-  candidates: ExtractedCandidate[]; warnings: string[];
+  candidates: ExtractedCandidate[]; warnings: string[]; ocr_page_count?: number; ocr_pages?: number[];
 };
 type DocumentRow = { id: string; original_filename: string; storage_key: string; document_type: string; fiscal_year: number | null; statement_scope: string; size_bytes: number; uploaded_at: string; extraction_status: string };
 type HistoryRow = { fiscal_year: string; revenue: string; operating_cash_flow: string; capex: string };
@@ -329,6 +329,9 @@ export default function App() {
     { label: "Post-capex cash margin", value: ratio(fcf ?? undefined, getMetric("revenue")), percentage: true, formula: "Cash flow after capex / revenue" },
   ] : [];
 
+  const usesOcr = Boolean(analysis?.candidates.some(candidate => candidate.extraction_method === "ocr") || (analysis?.ocr_page_count ?? 0) > 0);
+  const chartableRatios = ratioCards.filter(card => card.percentage && card.value !== null && Number.isFinite(card.value));
+
   if (!supabase) return <main className="auth-screen"><section className="auth-card"><div className="brand-mark">PFI</div><h1>Supabase configuration required</h1><p>Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to Cloudflare Pages environment variables, then redeploy.</p></section></main>;
   if (authLoading) return <main className="auth-screen"><section className="auth-card"><div className="brand-mark">PFI</div><p>Checking secure session…</p></section></main>;
   if (!session) return <main className="auth-screen"><section className="auth-card">
@@ -442,8 +445,8 @@ export default function App() {
       {analysisError && <div className="notice error"><strong>Extraction needs attention</strong><p>{analysisError}</p></div>}
       {analysis && <div className="analysis-panel">
         <div className="result-title"><div><div className="eyebrow">DOCUMENT INTELLIGENCE</div><h3>Extracted statement candidates</h3></div><span className="tag">{analysis.candidate_count} CANDIDATES · {analysis.page_count} PAGES</span></div>
-        <p className="muted">These are unverified extraction candidates, not approved financial observations. The parser does not guess the year column, currency, unit or statement scope.</p>
-        {analysis.warnings.map((warning,index)=><p className="analysis-warning" key={index}>{warning}</p>)}
+        <p className="muted">Review the detected values and select the correct reporting column. Confirm period, currency, unit and consolidated/standalone scope before using any figure.</p>
+        {usesOcr && <div className="ocr-note"><strong>OCR-assisted extraction</strong><span>Figures are draft candidates. Check digits, minus signs and columns against the original report before approval.</span></div> }
         {analysis.candidates.length > 0 ? <div className="candidate-table">
           <div className="candidate-row candidate-head"><span>Metric / source line</span><span>Choose value column</span><span>Page</span></div>
           {analysis.candidates.map((candidate,index)=><div className="candidate-row" key={index}>
@@ -454,10 +457,11 @@ export default function App() {
             <span className="candidate-source">Page {candidate.page}<small>{candidate.extraction_method === "ocr" ? "OCR · verify carefully" : "PDF text"}</small></span>
           </div>)}
         </div> : <div className="notice error">No supported financial line items could be extracted. The PDF may be scanned, low quality, or use unfamiliar labels.</div>}
-        {ratioCards.length > 0 && <div className="ratio-review">
+        {<div className="ratio-review">
           <div className="eyebrow">PROVISIONAL ANALYSIS</div><h4>Financial health snapshot</h4>
-          <p className="muted">Calculated only where a metric has one detected source row. Select the correct current-period column above. Duplicate rows and missing inputs remain unavailable rather than being guessed.</p>
-          <div className="ratio-grid">{ratioCards.map(card=><article key={card.label}>
+          <p className="muted">Live calculations from uniquely detected source rows. Missing or duplicated inputs remain unavailable. Percentages are charted below; non-percentage ratios remain as separate indicators.</p>
+          {chartableRatios.length > 0 && <div className="health-chart"><div className="health-chart-head"><strong>Profitability & return profile</strong><span>Percentage metrics</span></div>{chartableRatios.map(card=><div className="health-bar-row" key={card.label}><span>{card.label}</span><div className="health-track"><i style={{ width: `${Math.min(100, Math.abs(card.value ?? 0) * 100)}%` }} /></div><b>{ratioText(card.value, true)}</b></div>)}</div>}
+          <div className="ratio-grid">{ratioCards.map(card=><article key={card.label} className={card.value === null ? "metric-missing" : "metric-populated"}>
             <span>{card.label}</span><strong>{card.label === "Cash flow after capex" ? (card.value === null ? "—" : number(card.value)) : ratioText(card.value,card.percentage)}</strong><small>{card.formula}</small>
           </article>)}</div>
           <p className="result-disclaimer">This snapshot is not yet saved as validated financial observations. Confirm the reporting period, scope and unit before relying on it. Cash conversion, margins and balance-sheet ratios require consistent statement units.</p>
