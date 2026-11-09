@@ -8,3 +8,5 @@ CORS_ORIGINS = [
     for item in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
     if item.strip()
 ]
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
