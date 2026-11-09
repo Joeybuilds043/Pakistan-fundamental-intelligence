@@ -152,7 +152,7 @@ export default function App() {
       if (downloadError) throw downloadError;
       const form = new FormData();
       form.append("file", data, document.original_filename);
-      const response = await fetch(`${API_URL}/v1/documents/analyze`, { method: "POST", body: form });
+      const response = await fetch(`${API_URL}/v1/documents/analyze`, { method: "POST", headers: { Authorization: `Bearer ${session?.access_token || ""}` }, body: form });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "PDF extraction failed.");
       const extracted = payload as AnalysisResult;
@@ -212,7 +212,7 @@ export default function App() {
         try {
           const form = new FormData();
           form.append("file", file, file.name);
-          const response = await fetch(`${API_URL}/v1/documents/analyze`, { method: "POST", body: form });
+          const response = await fetch(`${API_URL}/v1/documents/analyze`, { method: "POST", headers: { Authorization: `Bearer ${session?.access_token || ""}` }, body: form });
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.detail || "The PDF was stored but extraction failed.");
           extracted = payload as AnalysisResult;
