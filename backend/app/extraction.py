@@ -69,7 +69,7 @@ def extract_candidates_from_text(text: str, page_number: int) -> list[dict[str, 
             tail = clean[match.end():]
             tokens = AMOUNT_RE.findall(tail)
             values: list[dict[str, Any]] = []
-            for token in tokens[:4]:
+            for token in tokens[:6]:
                 parsed = parse_amount(token)
                 if parsed is None or (parsed.is_integer() and 1900 <= parsed <= 2200):
                     continue
@@ -96,8 +96,9 @@ def extract_pdf_candidates(content: bytes) -> dict[str, Any]:
     candidates: list[dict[str, Any]] = []
     warnings: list[str] = []
     with pdfplumber.open(io.BytesIO(content)) as pdf:
-        if len(pdf.pages) > MAX_PAGES:
-            raise ValueError(f"PDF has {len(pdf.pages)} pages; the current limit is {MAX_PAGES}.")
+        page_count = len(pdf.pages)
+        if page_count > MAX_PAGES:
+            raise ValueError(f"PDF has {page_count} pages; the current limit is {MAX_PAGES}.")
         for page_number, page in enumerate(pdf.pages, start=1):
             text = page.extract_text() or ""
             if not text.strip():
@@ -113,7 +114,7 @@ def extract_pdf_candidates(content: bytes) -> dict[str, Any]:
     warnings.append("All values are extraction candidates. Confirm the reporting column, unit, currency, period and consolidated/standalone scope before using them.")
     return {
         "extraction_status": "review_required" if candidates else "no_text_candidates",
-        "page_count": len(pdf.pages),
+        "page_count": page_count,
         "candidate_count": len(candidates),
         "candidates": candidates,
         "warnings": warnings,
