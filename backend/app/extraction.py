@@ -16,8 +16,8 @@ MAX_PAGES = 200
 MAX_CANDIDATES = 1200
 
 METRICS: list[tuple[str, re.Pattern[str]]] = [
-    ("revenue", re.compile(r"\b(revenue|turnover|net sales|sales)\b", re.I)),
     ("cost_of_sales", re.compile(r"\b(cost of sales|cost of revenue)\b", re.I)),
+    ("revenue", re.compile(r"\b(revenue|turnover|net sales|sales)\b", re.I)),
     ("gross_profit", re.compile(r"\bgross profit\b", re.I)),
     ("operating_profit", re.compile(r"\b(operating profit|profit from operations|operating income)\b", re.I)),
     ("finance_cost", re.compile(r"\b(finance cost|finance costs|finance expense|interest expense)\b", re.I)),
