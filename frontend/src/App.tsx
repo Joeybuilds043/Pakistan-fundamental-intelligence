@@ -18,7 +18,7 @@ type AnalysisResult = {
   extraction_status: string; page_count: number; candidate_count: number;
   candidates: ExtractedCandidate[]; warnings: string[];
 };
-type DocumentRow = { id: string; original_filename: string; storage_key: string; document_type: string; fiscal_year: number | null; statement_scope: string; size_bytes: number; uploaded_at: string };
+type DocumentRow = { id: string; original_filename: string; storage_key: string; document_type: string; fiscal_year: number | null; statement_scope: string; size_bytes: number; uploaded_at: string; extraction_status: string };
 type HistoryRow = { fiscal_year: string; revenue: string; operating_cash_flow: string; capex: string };
 type QuantResult = {
   ticker: string;
@@ -64,6 +64,7 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [documentError, setDocumentError] = useState("");
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [documentType, setDocumentType] = useState("annual_report");
   const [fiscalYear, setFiscalYear] = useState("");
   const [statementScope, setStatementScope] = useState("consolidated");
@@ -98,7 +99,7 @@ export default function App() {
     if (!supabase || !session?.user.id) { setDocuments([]); return; }
     let active = true;
     supabase.from("source_documents")
-      .select("id,original_filename,storage_key,document_type,fiscal_year,statement_scope,size_bytes,uploaded_at")
+      .select("id,original_filename,storage_key,document_type,fiscal_year,statement_scope,size_bytes,uploaded_at,extraction_status")
       .order("uploaded_at", { ascending: false })
       .then(({ data, error }) => {
         if (!active) return;
@@ -142,6 +143,29 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
+  async function analyzeStoredDocument(document: DocumentRow) {
+    if (!supabase) return;
+    setAnalyzingId(document.id);
+    setAnalysis(null); setAnalysisError(""); setDocumentError("");
+    try {
+      const { data, error: downloadError } = await supabase.storage.from(DOCUMENT_BUCKET).download(document.storage_key);
+      if (downloadError) throw downloadError;
+      const form = new FormData();
+      form.append("file", data, document.original_filename);
+      const response = await fetch(`${API_URL}/v1/documents/analyze`, { method: "POST", body: form });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || "PDF extraction failed.");
+      const extracted = payload as AnalysisResult;
+      setAnalysis(extracted);
+      const { error: updateError } = await supabase.from("source_documents")
+        .update({ extraction_status: extracted.extraction_status }).eq("id", document.id);
+      if (updateError) setAnalysisError("Extraction succeeded, but its status could not be saved: " + updateError.message);
+      setDocuments(current => current.map(item => item.id === document.id ? { ...item, extraction_status: extracted.extraction_status } : item));
+    } catch (e) {
+      setAnalysisError(e instanceof Error ? e.message : "Could not analyze the stored report.");
+    } finally { setAnalyzingId(null); }
+  }
+
   async function inspectFile() {
     if (!file || !supabase || !session?.user) return;
     setBusy(true); setError(""); setResult(null); setDocumentError("");
@@ -174,7 +198,7 @@ export default function App() {
         document_type: documentType,
         fiscal_year: fiscalYear ? Number(fiscalYear) : null,
         statement_scope: statementScope,
-      }).select("id,original_filename,storage_key,document_type,fiscal_year,statement_scope,size_bytes,uploaded_at").single();
+      }).select("id,original_filename,storage_key,document_type,fiscal_year,statement_scope,size_bytes,uploaded_at,extraction_status").single();
       if (metadataError) {
         await supabase.storage.from(DOCUMENT_BUCKET).remove([storageKey]);
         throw metadataError;
@@ -389,7 +413,7 @@ export default function App() {
       </div>}
       {documentError && <div className="notice error">{documentError}</div>}
       <div className="history-heading"><strong>Your private source library</strong><span>{documents.length} stored document(s)</span></div>
-      {documents.length === 0 ? <p className="muted">No reports stored yet. Upload a company filing to begin your source register.</p> : <div className="document-list">{documents.map(document=><article className="document-item" key={document.id}><div><strong>{document.original_filename}</strong><span>{document.document_type.replace(/_/g," ")} · {document.fiscal_year ?? "Year not set"} · {document.statement_scope} · {(document.size_bytes/1024/1024).toFixed(2)} MB</span></div><button className="secondary" onClick={()=>downloadDocument(document)}><FileText size={14}/> Download</button></article>)}</div>}
+      {documents.length === 0 ? <p className="muted">No reports stored yet. Upload a company filing to begin your source register.</p> : <div className="document-list">{documents.map(document=><article className="document-item" key={document.id}><div><strong>{document.original_filename}</strong><span>{document.document_type.replace(/_/g," ")} · {document.fiscal_year ?? "Year not set"} · {document.statement_scope} · {(document.size_bytes/1024/1024).toFixed(2)} MB</span><small className="document-status">Extraction: {document.extraction_status || "pending"}</small></div><div className="document-actions"><button className="secondary" disabled={analyzingId === document.id} onClick={()=>analyzeStoredDocument(document)}>{analyzingId === document.id ? "Analyzing…" : "Analyze report"}</button><button className="secondary" onClick={()=>downloadDocument(document)}><FileText size={14}/> Download</button></div></article>)}</div>}
     </section>
 
     <section className="workflow">
