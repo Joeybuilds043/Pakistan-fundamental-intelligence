@@ -55,3 +55,13 @@ a{color:inherit;text-decoration:none}.shell{max-width:1160px;margin:auto;padding
 .document-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .document-status{color:#8fbce2;font:9px 'DM Mono';text-transform:uppercase;letter-spacing:.06em}
 @media(max-width:700px){.document-actions{width:100%}.document-actions button{flex:1;justify-content:center}}
+
+.ratio-review{margin-top:20px;padding-top:18px;border-top:1px solid #263b53}
+.ratio-review h4{font-size:15px;margin:7px 0}
+.ratio-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:14px}
+.ratio-grid article{min-width:0;padding:13px;background:#0a1420;border:1px solid #263b53;border-radius:7px}
+.ratio-grid article span{display:block;color:#8ea2b9;font-size:9px;text-transform:uppercase;letter-spacing:.07em}
+.ratio-grid article strong{display:block;margin:8px 0 5px;color:#dce9f6;font:17px 'DM Mono';overflow-wrap:anywhere}
+.ratio-grid article small{display:block;color:#71869e;font-size:9px;line-height:1.5}
+.candidate-values select{width:100%;max-width:170px;padding:6px 8px;background:#101e2e;border:1px solid #35516e;border-radius:5px;color:#c4ddf3;font:10px 'DM Mono'}
+@media(max-width:700px){.ratio-grid{grid-template-columns:1fr 1fr}.candidate-values select{max-width:100%}}
