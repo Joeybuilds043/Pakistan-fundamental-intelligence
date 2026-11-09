@@ -298,9 +298,13 @@ export default function App() {
   }
 
   const selectedMetricValues: Record<string, number> = {};
+  const metricCandidateCounts: Record<string, number> = {};
+  analysis?.candidates.forEach(candidate => {
+    metricCandidateCounts[candidate.metric_code] = (metricCandidateCounts[candidate.metric_code] ?? 0) + 1;
+  });
   analysis?.candidates.forEach((candidate, index) => {
     const selected = candidate.values[candidateSelections[index] ?? 0];
-    if (selected && selectedMetricValues[candidate.metric_code] === undefined) {
+    if (selected && metricCandidateCounts[candidate.metric_code] === 1) {
       selectedMetricValues[candidate.metric_code] = selected.value;
     }
   });
@@ -450,7 +454,7 @@ export default function App() {
         </div> : <div className="notice error">No usable text-based financial rows were found. A scanned PDF may require OCR.</div>}
         {ratioCards.length > 0 && <div className="ratio-review">
           <div className="eyebrow">PROVISIONAL ANALYSIS</div><h4>Financial health snapshot</h4>
-          <p className="muted">Calculated from the selected values. Choose the correct current-period column above. Missing inputs remain unavailable; no sector judgement is applied yet.</p>
+          <p className="muted">Calculated only where a metric has one detected source row. Select the correct current-period column above. Duplicate rows and missing inputs remain unavailable rather than being guessed.</p>
           <div className="ratio-grid">{ratioCards.map(card=><article key={card.label}>
             <span>{card.label}</span><strong>{card.label === "Free cash flow" ? (card.value === null ? "—" : number(card.value)) : ratioText(card.value,card.percentage)}</strong><small>{card.formula}</small>
           </article>)}</div>
