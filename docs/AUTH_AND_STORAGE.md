@@ -11,6 +11,9 @@
 - Storage object policies restrict upload, read, update and delete to the authenticated user's own folder/object ownership.
 - `public.source_documents` stores filename, storage key, MIME type, size, SHA-256, document type, fiscal year and statement scope. Existing row-level security restricts rows to the uploader.
 - Browser uses only the Supabase publishable key. No service-role or secret key is included in the frontend.
+- The PDF analysis endpoint verifies the user's bearer token against Supabase Auth before processing.
+- Existing stored PDFs can be downloaded through the user's private session and re-analyzed without uploading another copy.
+- Text-based PDFs return reviewable line-item candidates with page/source-line provenance. The UI lets the user choose among detected numeric columns and calculates a provisional ratio snapshot only when a metric has one unambiguous source row.
 
 ## One-time Supabase dashboard setting
 
@@ -37,6 +40,8 @@ Supabase's default email sender is suitable for initial testing only and has str
 
 ## Important limitations
 
-Uploads are stored as original files and registered in Postgres. The platform does not yet extract statement tables, validate figures, reconcile financial statements or create financial observations automatically. A stored document is not an analyzed document.
+PDF extraction is a first-pass text parser, not a full statement understanding engine. It does not yet detect the correct reporting period, consolidated/standalone scope, currency or unit; the user must review the source line and select the correct numeric column. It does not automatically approve or persist extracted values to financial_observations. The ratio snapshot is provisional and uses closing balances for ROA/ROE. Duplicate metric rows are excluded rather than guessed.
+
+Scanned PDFs need OCR, and XLSX/XLS/CSV extraction is not yet enabled. Statement reconciliation, accounting validation and versioned observation approval are future stages.
 
 The app currently supports standard uploads up to 25 MiB. Large-file resumable uploads are not implemented.
