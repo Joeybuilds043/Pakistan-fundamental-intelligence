@@ -10,6 +10,14 @@ type Inspection = {
   extraction_status: string;
   message: string;
 };
+type ExtractedCandidate = {
+  metric_code: string; label: string; values: { raw: string; value: number }[];
+  page: number; source_line: string; confidence: string; unit: string; period: string; scope: string;
+};
+type AnalysisResult = {
+  extraction_status: string; page_count: number; candidate_count: number;
+  candidates: ExtractedCandidate[]; warnings: string[];
+};
 type DocumentRow = { id: string; original_filename: string; storage_key: string; document_type: string; fiscal_year: number | null; statement_scope: string; size_bytes: number; uploaded_at: string };
 type HistoryRow = { fiscal_year: string; revenue: string; operating_cash_flow: string; capex: string };
 type QuantResult = {
@@ -53,6 +61,8 @@ export default function App() {
   const [statementScope, setStatementScope] = useState("consolidated");
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<Inspection | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [ticker, setTicker] = useState("");
@@ -163,10 +173,31 @@ export default function App() {
       }
       const saved = data as DocumentRow;
       setDocuments(current => [saved, ...current]);
+
+      let extracted: AnalysisResult | null = null;
+      let extractionFailure = "";
+      if (extension === "pdf") {
+        try {
+          const form = new FormData();
+          form.append("file", file, file.name);
+          const response = await fetch(`${API_URL}/v1/documents/analyze`, { method: "POST", body: form });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.detail || "The PDF was stored but extraction failed.");
+          extracted = payload as AnalysisResult;
+        } catch (analysisException) {
+          extractionFailure = analysisException instanceof Error ? analysisException.message : "PDF extraction could not be completed.";
+        }
+      } else {
+        extractionFailure = "The source is stored. Automatic extraction currently supports text-based PDFs; spreadsheet extraction is not enabled yet.";
+      }
+      setAnalysis(extracted);
+      setAnalysisError(extractionFailure);
       setResult({
         filename: file.name, size_bytes: file.size, sha256: hash,
-        extraction_status: "stored_pending_extraction",
-        message: "Original report securely stored in your private account. Financial figures have not yet been extracted or validated.",
+        extraction_status: extracted?.extraction_status || "stored_extraction_pending",
+        message: extracted
+          ? `Report stored. ${extracted.candidate_count} financial line-item candidates detected across ${extracted.page_count} pages. Review them before using any figure.`
+          : "Original report securely stored. " + (extractionFailure || "No extraction result was returned."),
       });
       setFile(null);
     } catch (e) {
@@ -301,11 +332,25 @@ export default function App() {
       <label className="dropzone">
         <UploadCloud size={28}/><strong>{file ? file.name : "Choose an annual report or financial workbook"}</strong>
         <span>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB selected` : "Select a file from your device · Maximum 25 MB"}</span>
-        <input type="file" accept=".pdf,.xlsx,.xls,.csv" onChange={e => {setFile(e.target.files?.[0] || null);setResult(null);setError("");}}/>
+        <input type="file" accept=".pdf,.xlsx,.xls,.csv" onChange={e => {setFile(e.target.files?.[0] || null);setResult(null);setAnalysis(null);setAnalysisError("");setError("");}}/>
       </label>
       <button className="submit" onClick={inspectFile} disabled={!file || busy}>{busy ? "Inspecting source…" : "Inspect source document"}</button>
       {error && <div className="notice error">{error}</div>}
       {result && <div className="notice success"><strong>Private source stored</strong><p>{result.message}</p><small>{result.filename} · {result.size_bytes.toLocaleString()} bytes · {result.extraction_status}</small><code>{result.sha256}</code></div>}
+      {analysisError && <div className="notice error"><strong>Extraction needs attention</strong><p>{analysisError}</p></div>}
+      {analysis && <div className="analysis-panel">
+        <div className="result-title"><div><div className="eyebrow">DOCUMENT INTELLIGENCE</div><h3>Extracted statement candidates</h3></div><span className="tag">{analysis.candidate_count} CANDIDATES · {analysis.page_count} PAGES</span></div>
+        <p className="muted">These are unverified extraction candidates, not approved financial observations. The parser does not guess the year column, currency, unit or statement scope.</p>
+        {analysis.warnings.map((warning,index)=><p className="analysis-warning" key={index}>{warning}</p>)}
+        {analysis.candidates.length > 0 ? <div className="candidate-table">
+          <div className="candidate-row candidate-head"><span>Metric</span><span>Extracted values</span><span>Source</span></div>
+          {analysis.candidates.map((candidate,index)=><div className="candidate-row" key={index}>
+            <span><strong>{candidate.metric_code.replace(/_/g," ")}</strong><small>{candidate.label}</small></span>
+            <span className="candidate-values">{candidate.values.map(value=>value.raw).join("  /  ")}</span>
+            <span className="candidate-source">Page {candidate.page}</span>
+          </div>)}
+        </div> : <div className="notice error">No usable text-based financial rows were found. A scanned PDF may require OCR.</div>}
+      </div>}
       {documentError && <div className="notice error">{documentError}</div>}
       <div className="history-heading"><strong>Your private source library</strong><span>{documents.length} stored document(s)</span></div>
       {documents.length === 0 ? <p className="muted">No reports stored yet. Upload a company filing to begin your source register.</p> : <div className="document-list">{documents.map(document=><article className="document-item" key={document.id}><div><strong>{document.original_filename}</strong><span>{document.document_type.replace(/_/g," ")} · {document.fiscal_year ?? "Year not set"} · {document.statement_scope} · {(document.size_bytes/1024/1024).toFixed(2)} MB</span></div><button className="secondary" onClick={()=>downloadDocument(document)}><FileText size={14}/> Download</button></article>)}</div>}
