@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from app.main import app
+from app.main import app, require_authenticated_user
 
 client = TestClient(app)
 
@@ -74,19 +74,28 @@ def test_quant_rejects_non_ascending_fiscal_years():
     )
     assert response.status_code == 422
 
-def test_analyze_pdf_rejects_invalid_pdf_signature():
+def test_analyze_pdf_requires_authenticated_user():
     response = client.post(
         "/v1/documents/analyze",
-        files={"file": ("annual-report.pdf", b"not a real PDF", "application/pdf")},
+        files={"file": ("annual-report.pdf", b"%PDF-test", "application/pdf")},
     )
+    assert response.status_code == 401
+
+
+def analyze_as_user(upload):
+    app.dependency_overrides[require_authenticated_user] = lambda: {"id": "test-user"}
+    try:
+        return client.post("/v1/documents/analyze", files={"file": upload})
+    finally:
+        app.dependency_overrides.pop(require_authenticated_user, None)
+
+
+def test_analyze_pdf_rejects_invalid_pdf_signature():
+    response = analyze_as_user(("annual-report.pdf", b"not a real PDF", "application/pdf"))
     assert response.status_code == 422
     assert "valid PDF signature" in response.json()["detail"]
 
 
 def test_analyze_pdf_rejects_non_pdf_file():
-    response = client.post(
-        "/v1/documents/analyze",
-        files={"file": ("annual-report.csv", b"revenue,100", "text/csv")},
-    )
+    response = analyze_as_user(("annual-report.csv", b"revenue,100", "text/csv"))
     assert response.status_code == 415
-
