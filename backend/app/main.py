@@ -1,9 +1,10 @@
 from hashlib import sha256
 from pathlib import Path
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import httpx
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import APP_ENV, CORS_ORIGINS, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
+from .config import APP_ENV, CORS_ORIGINS, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL
 from .extraction import extract_pdf_candidates
 from .quant import run_fundamental_scenario
 from .schemas import DocumentInspection, HealthResponse, QuantScenarioRequest
@@ -31,6 +32,27 @@ ALLOWED_CONTENT_TYPES = {
     "application/csv",
     "application/octet-stream",
 }
+
+
+async def require_authenticated_user(authorization: str | None = Header(default=None)):
+    if not SUPABASE_URL or not SUPABASE_PUBLISHABLE_KEY:
+        raise HTTPException(status_code=503, detail="Authentication service is not configured.")
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Sign in before analyzing a report.")
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(
+                f"{SUPABASE_URL}/auth/v1/user",
+                headers={"apikey": SUPABASE_PUBLISHABLE_KEY, "Authorization": authorization},
+            )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail="Could not verify the user session. Try again.") from exc
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Your session is invalid or expired. Sign in again.")
+    user = response.json()
+    if not user.get("id"):
+        raise HTTPException(status_code=401, detail="Supabase did not return a valid user.")
+    return user
 
 
 @app.get("/", tags=["system"])
@@ -89,7 +111,7 @@ async def inspect_document(file: UploadFile = File(...)):
 
 
 @app.post("/v1/documents/analyze", tags=["documents"])
-async def analyze_pdf(file: UploadFile = File(...)):
+async def analyze_pdf(file: UploadFile = File(...), _user: dict = Depends(require_authenticated_user)):
     """Extract reviewable financial-line-item candidates from a text-based PDF.
 
     This endpoint does not persist files or treat extracted values as verified
