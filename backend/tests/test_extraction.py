@@ -21,3 +21,7 @@ def test_extracts_revenue_with_page_provenance():
 def test_skips_fiscal_year_tokens():
     rows = extract_candidates_from_text("Total assets 2025 2024 45,000 41,000", 3)
     assert rows[0]["values"][0]["value"] == 45000
+
+def test_cost_of_sales_is_not_misclassified_as_revenue():
+    rows = extract_candidates_from_text("Cost of sales 8,000 7,500", 2)
+    assert rows[0]["metric_code"] == "cost_of_sales"
