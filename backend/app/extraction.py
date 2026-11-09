@@ -30,7 +30,7 @@ METRICS: list[tuple[str, re.Pattern[str]]] = [
     ("current_assets", re.compile(r"\btotal current assets\b", re.I)),
     ("current_liabilities", re.compile(r"\btotal current liabilities\b", re.I)),
     ("total_equity", re.compile(r"\b(total equity|equity attributable to owners)\b", re.I)),
-    ("total_borrowings", re.compile(r"\b(total borrowings|short.term borrowings|long.term borrowings|loans and borrowings)\b", re.I)),
+    ("total_borrowings", re.compile(r"\b(total borrowings|total loans and borrowings|loans and borrowings)\b", re.I)),
     ("cash_and_equivalents", re.compile(r"\b(cash and cash equivalents|cash equivalents)\b", re.I)),
     ("trade_receivables", re.compile(r"\b(trade receivables|accounts receivable)\b", re.I)),
     ("inventories", re.compile(r"\b(inventories|stock in trade)\b", re.I)),
