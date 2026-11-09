@@ -460,7 +460,7 @@ export default function App() {
         {<div className="ratio-review">
           <div className="eyebrow">PROVISIONAL ANALYSIS</div><h4>Financial health snapshot</h4>
           <p className="muted">Live calculations from uniquely detected source rows. Missing or duplicated inputs remain unavailable. Percentages are charted below; non-percentage ratios remain as separate indicators.</p>
-          {chartableRatios.length > 0 && <div className="health-chart"><div className="health-chart-head"><strong>Profitability & return profile</strong><span>Percentage metrics</span></div>{chartableRatios.map(card=><div className="health-bar-row" key={card.label}><span>{card.label}</span><div className="health-track"><i style={{ width: `${Math.min(100, Math.abs(card.value ?? 0) * 100)}%` }} /></div><b>{ratioText(card.value, true)}</b></div>)}</div>}
+          {chartableRatios.length > 0 && <div className="health-chart"><div className="health-chart-head"><strong>Profitability & return profile</strong><span>Percentage metrics</span></div>{chartableRatios.map(card=><div className="health-bar-row" key={card.label}><span>{card.label}</span><div className="health-track"><i className={(card.value ?? 0) < 0 ? "negative" : ""} style={{ width: `${Math.min(100, Math.abs(card.value ?? 0) * 100)}%` }} /></div><b>{ratioText(card.value, true)}</b></div>)}</div>}
           <div className="ratio-grid">{ratioCards.map(card=><article key={card.label} className={card.value === null ? "metric-missing" : "metric-populated"}>
             <span>{card.label}</span><strong>{card.label === "Cash flow after capex" ? (card.value === null ? "—" : number(card.value)) : ratioText(card.value,card.percentage)}</strong><small>{card.formula}</small>
           </article>)}</div>
