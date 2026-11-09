@@ -4,12 +4,13 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import APP_ENV, CORS_ORIGINS, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
+from .extraction import extract_pdf_candidates
 from .quant import run_fundamental_scenario
 from .schemas import DocumentInspection, HealthResponse, QuantScenarioRequest
 
 app = FastAPI(
     title="Pakistan Fundamental Intelligence API",
-    version="0.2.0",
+    version="0.3.0",
     description="Source-traceable fundamental research and quantitative scenario API for PSX-listed companies.",
 )
 
@@ -36,10 +37,10 @@ ALLOWED_CONTENT_TYPES = {
 def root():
     return {
         "name": "Pakistan Fundamental Intelligence API",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "environment": APP_ENV,
         "docs": "/docs",
-        "capabilities": ["source_inspection", "quantitative_scenarios"],
+        "capabilities": ["source_inspection", "pdf_candidate_extraction", "quantitative_scenarios"],
     }
 
 
@@ -85,6 +86,35 @@ async def inspect_document(file: UploadFile = File(...)):
             "No financial figures were extracted and no file was stored."
         ),
     )
+
+
+@app.post("/v1/documents/analyze", tags=["documents"])
+async def analyze_pdf(file: UploadFile = File(...)):
+    """Extract reviewable financial-line-item candidates from a text-based PDF.
+
+    This endpoint does not persist files or treat extracted values as verified
+    accounting observations. Users must confirm period, scope and units.
+    """
+    filename = Path(file.filename or "").name
+    if Path(filename).suffix.lower() != ".pdf":
+        raise HTTPException(status_code=415, detail="Initial extraction supports PDF files only.")
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if not content:
+        raise HTTPException(status_code=400, detail="The uploaded PDF is empty.")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File exceeds the {MAX_UPLOAD_MB} MB upload limit.")
+    try:
+        extracted = extract_pdf_candidates(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail="PDF could not be parsed. It may be encrypted, damaged or image-only.") from exc
+    return {
+        "filename": filename,
+        "size_bytes": len(content),
+        "sha256": sha256(content).hexdigest(),
+        **extracted,
+    }
 
 
 @app.post("/v1/quant/scenario", tags=["quantitative research"])
